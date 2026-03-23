@@ -778,29 +778,29 @@ export default function App() {
                     <span className="h-2 w-2 rounded-full bg-[#98f9d9] shadow-[0_0_16px_rgba(152,249,217,0.9)]" />
                     Private video room
                   </div>
-                  <p className="mt-7 text-sm uppercase tracking-[0.34em] text-white/50">Video call</p>
+                  <p className="mt-7 text-sm uppercase tracking-[0.34em] text-white/50">Private video call</p>
                   <h1 className="hero-glow mt-4 max-w-[10ch] text-[clamp(58px,11vw,122px)] font-medium leading-[0.88] tracking-[-0.06em] text-white">
-                    Start a room and share the link.
+                    Talk like nobody's listening.
                   </h1>
                   <p className="mt-6 max-w-[560px] text-[17px] leading-7 text-white/68 md:text-[19px]">
-                    Sign in, open a room, and invite someone to join your video call.
+                    Peer-to-peer video with verifiable Ethereum identity, so you can prove who owns the address on the other end.
                   </p>
                   <p className="mt-4 max-w-[560px] text-sm leading-6 text-white/50">
-                    Flavor text: calm visuals, simple steps, and a lightweight room you can share in seconds.
+                    No room host in the middle, no broadcast audience, just a direct call with cryptographic proof of who you're speaking to.
                   </p>
 
                   <div className="mt-10 grid gap-3 sm:grid-cols-3">
                     <div className="glass-pill rounded-[24px] p-4">
-                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Mode</div>
-                      <div className="mt-2 text-base text-white/88">Wallet or guest</div>
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Identity</div>
+                      <div className="mt-2 text-base text-white/88">Verified wallet or private guest</div>
                     </div>
                     <div className="glass-pill rounded-[24px] p-4">
-                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">How it works</div>
-                      <div className="mt-2 text-base text-white/88">Share a link and connect live</div>
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Privacy</div>
+                      <div className="mt-2 text-base text-white/88">Peer-to-peer, not room-to-server</div>
                     </div>
                     <div className="glass-pill rounded-[24px] p-4">
-                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Best for</div>
-                      <div className="mt-2 text-base text-white/88">Quick one-to-one calls</div>
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Trust</div>
+                      <div className="mt-2 text-base text-white/88">Prove the address behind the voice</div>
                     </div>
                   </div>
                 </div>
@@ -811,7 +811,7 @@ export default function App() {
                       ✦
                     </div>
                     <h2 className="mt-5 text-[38px] font-medium tracking-[-0.04em] text-white">Sign in</h2>
-                    <p className="mt-3 text-[15px] leading-6 text-white/62">Choose how you want to join.</p>
+                    <p className="mt-3 text-[15px] leading-6 text-white/62">Choose private guest access or prove wallet ownership.</p>
 
                     <div className="mt-7 flex flex-col gap-3">
                       <ActionButton disabled={ui.loginBusy || !window.ethereum} onClick={() => void handleWalletLogin()}>
@@ -836,13 +836,13 @@ export default function App() {
               <Panel className="rounded-[34px] border-white/14 px-6 py-7 md:px-8 md:py-9">
                 <div className="glass-pill inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-white/56">
                   <span className="h-2 w-2 rounded-full bg-[#95d6ff] shadow-[0_0_18px_rgba(149,214,255,0.9)]" />
-                  Ready to call
+Private by default
                 </div>
                 <h1 className="hero-glow mt-5 text-[clamp(56px,11vw,118px)] font-medium leading-[0.88] tracking-[-0.07em] text-white">
-                  Your call room
+Your private room
                 </h1>
                 <p className="mt-4 max-w-[720px] text-[18px] leading-7 text-white/62">
-                  Share your room link and the call will start when someone else joins.
+                  Share a room link for a direct peer-to-peer call, with the option to verify the Ethereum address on the other end.
                 </p>
               </Panel>
 
