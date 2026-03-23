@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plasmodium</title>
+    <link rel="stylesheet" href="/styles.css?v=20260322-2332" />
+  </head>
+  <body>
+    <canvas id="physarumBackground" class="physarum-background"></canvas>
+    <div class="shell">
+      <section id="loginView" class="login-shell">
+        <p class="login-mark">Plasmodium</p>
+
+        <section class="panel login-card login-card-centered">
+          <h1>Sign in</h1>
+          <p class="muted-copy">Choose an identity to enter Plasmodium.</p>
+          <div class="stacked-actions">
+            <button id="connectButton">Log in with Ethereum</button>
+            <button id="anonymousJoinButton">Continue anonymously</button>
+          </div>
+          <div class="login-note" id="walletHint">Checking for Ethereum wallet…</div>
+        </section>
+      </section>
+
+      <div id="appView" class="app-shell hidden">
+        <header class="hero">
+          <div>
+            <p class="eyebrow">Ready to call</p>
+            <h1>Plasmodium</h1>
+            <p class="lede">Share a room link and the call will start automatically when someone joins you.</p>
+          </div>
+          <div class="status-card">
+            <div><span>Wallet</span><strong id="walletValue">Disconnected</strong></div>
+            <div><span>Peer ID</span><strong id="peerIdValue">—</strong></div>
+          </div>
+        </header>
+
+        <main class="grid hangouts-grid">
+          <section id="preJoinPanel" class="panel prejoin-panel hidden">
+            <h2>Join room</h2>
+            <p class="muted-copy">Open a room to start your call. Once you join, Plasmodium will immediately request camera and microphone access.</p>
+            <div class="actions">
+              <button id="joinButton" disabled>Join room</button>
+              <button id="switchIdentityButton" class="ghost-button">Log out</button>
+            </div>
+          </section>
+
+          <section class="panel stage-panel">
+            <div class="stage-header">
+              <div>
+                <h2>Call</h2>
+                <p class="muted-copy" id="callStatus">Join a room to start your call.</p>
+              </div>
+              <div class="presence-chip" id="presenceCount">0 people here</div>
+            </div>
+
+            <div id="videoShell" class="video-shell hidden">
+              <div class="video-grid hangouts-stage">
+                <figure id="remoteFigure" class="main-video hidden">
+                  <video id="remoteVideo" autoplay playsinline></video>
+                  <figcaption>Remote</figcaption>
+                </figure>
+                <figure id="localFigure" class="self-video hidden">
+                  <video id="localVideo" autoplay muted playsinline></video>
+                  <figcaption>You</figcaption>
+                </figure>
+              </div>
+            </div>
+
+            <div class="presence">
+              <h3>People here</h3>
+              <ul id="peerList"></ul>
+            </div>
+
+            <div class="actions room-actions">
+              <button id="copyLinkButton" class="hidden">Copy invite link</button>
+              <button id="leaveButton" class="ghost-button hidden">Leave room</button>
+            </div>
+          </section>
+
+          <section class="panel log-panel">
+            <h2>Activity</h2>
+            <pre id="log"></pre>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="/app.js?v=20260322-2339"></script>
+  </body>
+</html>

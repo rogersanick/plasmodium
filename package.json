@@ -1,0 +1,16 @@
+{
+  "name": "plasmodium",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "PUBLIC_DIR=./public node ./node_modules/@physarum/server/server.js",
+    "dev": "PUBLIC_DIR=./public node ./node_modules/@physarum/server/server.js"
+  },
+  "dependencies": {
+    "@physarum/client": "file:../physarum-client",
+    "@physarum/server": "file:../physarum-server",
+    "ethers": "^6.15.0",
+    "ws": "^8.18.3"
+  }
+}
