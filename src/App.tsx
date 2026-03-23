@@ -7,7 +7,6 @@ import {
   useRef,
   useState
 } from 'react'
-import * as THREE from 'three'
 import { ethers } from 'ethers'
 import { startPhysarumBackground } from '@physarum/client/browser/physarum-background'
 
@@ -60,10 +59,6 @@ type UiState = {
   loginBusy: boolean
   walletHint: string
   logs: string[]
-}
-
-type GlassPlaneProps = {
-  canvasRef: React.RefObject<HTMLCanvasElement | null>
 }
 
 function readRoomFromUrl() {
@@ -128,114 +123,12 @@ function ActionButton({
   )
 }
 
-function GlassPlane({ canvasRef }: GlassPlaneProps) {
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.setClearColor(0x000000, 0)
-
-    const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 20)
-    camera.position.z = 3.1
-
-    const group = new THREE.Group()
-    scene.add(group)
-
-    const plane = new THREE.Mesh(
-      new THREE.PlaneGeometry(4.3, 5.2, 48, 48),
-      new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#08111a'),
-        transparent: true,
-        opacity: 0.38,
-        transmission: 0.72,
-        roughness: 0.2,
-        metalness: 0.08,
-        ior: 1.08,
-        thickness: 1.6,
-        reflectivity: 0.65,
-        clearcoat: 1,
-        clearcoatRoughness: 0.16,
-        sheen: 0.7,
-        sheenColor: new THREE.Color('#8ddfff'),
-        sheenRoughness: 0.45
-      })
-    )
-    group.add(plane)
-
-    const rim = new THREE.Mesh(
-      new THREE.PlaneGeometry(4.36, 5.28),
-      new THREE.MeshBasicMaterial({
-        color: new THREE.Color('#c8efff'),
-        transparent: true,
-        opacity: 0.08
-      })
-    )
-    rim.position.z = -0.02
-    group.add(rim)
-
-    const ambient = new THREE.AmbientLight('#a5d9ff', 0.75)
-    scene.add(ambient)
-
-    const key = new THREE.PointLight('#9ad1ff', 6.5, 9, 2)
-    key.position.set(-1.8, 2.1, 2.4)
-    scene.add(key)
-
-    const fill = new THREE.PointLight('#8dffd6', 4.8, 9, 2)
-    fill.position.set(1.9, -1.5, 2.2)
-    scene.add(fill)
-
-    const resize = () => {
-      const width = window.innerWidth
-      const height = window.innerHeight
-      renderer.setSize(width, height, false)
-      camera.aspect = width / height
-      camera.updateProjectionMatrix()
-      plane.scale.set(Math.max(1.15, width / 820), Math.max(1.1, height / 760), 1)
-      rim.scale.copy(plane.scale)
-    }
-
-    resize()
-    window.addEventListener('resize', resize)
-
-    let frame = 0
-    const clock = new THREE.Clock()
-
-    const tick = () => {
-      const t = clock.getElapsedTime()
-      group.rotation.z = Math.sin(t * 0.14) * 0.04
-      plane.rotation.z = Math.sin(t * 0.18) * 0.03
-      plane.position.y = Math.sin(t * 0.28) * 0.05
-      ;(plane.material as THREE.MeshPhysicalMaterial).iridescence = 0.22 + (Math.sin(t * 0.4) + 1) * 0.08
-      key.position.x = -1.8 + Math.sin(t * 0.55) * 0.4
-      fill.position.y = -1.5 + Math.cos(t * 0.45) * 0.35
-      renderer.render(scene, camera)
-      frame = window.requestAnimationFrame(tick)
-    }
-
-    tick()
-
-    return () => {
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('resize', resize)
-      plane.geometry.dispose()
-      ;(plane.material as THREE.Material).dispose()
-      rim.geometry.dispose()
-      ;(rim.material as THREE.Material).dispose()
-      renderer.dispose()
-    }
-  }, [canvasRef])
-
-  return <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-[1] h-screen w-screen opacity-[0.92]" />
-}
-
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const glassCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
+  const [roomDraft, setRoomDraft] = useState(() => readRoomFromUrl() ?? '')
+  const [callNotice, setCallNotice] = useState<string | null>(null)
 
   const stateRef = useRef<MutableAppState>({
     config: null,
@@ -270,7 +163,7 @@ export default function App() {
     remoteStream: null,
     peers: [],
     loginBusy: false,
-    walletHint: 'Checking for Ethereum wallet...',
+    walletHint: 'Checking for an Ethereum wallet...',
     logs: []
   })
 
@@ -377,9 +270,11 @@ export default function App() {
           to: remotePeerId,
           description: currentState.pc.localDescription ?? undefined
         })
-        log('Starting call setup', { type: currentState.pc.localDescription?.type })
+        log('Starting call', { type: currentState.pc.localDescription?.type })
       } catch (error) {
+        setCallNotice('The call could not be set up. Try joining the room again.')
         log(`Call setup failed: ${(error as Error).message}`)
+        closePeerConnection()
       } finally {
         currentState.makingOffer = false
       }
@@ -387,12 +282,24 @@ export default function App() {
 
     state.pc.onconnectionstatechange = () => {
       const currentState = stateRef.current
-      log('Call state changed', { state: currentState.pc?.connectionState })
+      const connectionState = currentState.pc?.connectionState
+      log('Call state changed', { state: connectionState })
+
+      if (connectionState === 'connected') {
+        setCallNotice(null)
+      } else if (connectionState === 'failed') {
+        setCallNotice('The call ended because the connection failed.')
+        closePeerConnection()
+      } else if (connectionState === 'disconnected' || connectionState === 'closed') {
+        setCallNotice('The call ended because the connection was lost.')
+        closePeerConnection()
+      }
+
       syncUi()
     }
 
     syncUi()
-  }, [log, sendSignal, syncUi, targetPeerId])
+  }, [closePeerConnection, log, sendSignal, syncUi, targetPeerId])
 
   const handleSignal = useCallback(
     async (payload?: SignalPayload) => {
@@ -431,7 +338,7 @@ export default function App() {
             to: payload.from,
             description: pc.localDescription ?? undefined
           })
-          log('Accepted incoming call setup', { from: payload.from })
+          log('Accepted incoming call', { from: payload.from })
         }
         return
       }
@@ -460,7 +367,7 @@ export default function App() {
 
     state.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     syncUi()
-    log('Camera and microphone are on')
+    log('Camera and microphone ready')
 
     if (targetPeerId() && !state.pc) {
       await startPeerConnection()
@@ -500,12 +407,14 @@ export default function App() {
       const message = JSON.parse(event.data)
 
       if (message.type === 'session-bound') {
-        log('Logged in', message.session)
+        log('Signed in', message.session)
         return
       }
 
       if (message.type === 'joined-room') {
         stateRef.current.room = message.room
+        setRoomDraft(message.room)
+        setCallNotice(null)
         window.history.replaceState({}, '', `${window.location.pathname}?room=${encodeURIComponent(message.room)}`)
         syncUi()
         log('Joined room', { room: message.room })
@@ -518,6 +427,7 @@ export default function App() {
         stateRef.current.room = null
         stateRef.current.peers.clear()
         stateRef.current.hasPromptedForMedia = false
+        setCallNotice(null)
         closePeerConnection()
         window.history.replaceState({}, '', window.location.pathname)
         syncUi()
@@ -536,12 +446,16 @@ export default function App() {
           currentState.peers.delete(payload.from)
           currentState.announcedPeers.delete(payload.from)
           if (payload.from !== currentState.appPeerId) {
-            log('Peer left room', { address: payload.address, peerId: payload.from })
+            log('Someone left the room', { address: payload.address, peerId: payload.from })
+            if (currentState.pc || currentState.remoteStream) {
+              setCallNotice('The call ended because the other person left the room.')
+              closePeerConnection()
+            }
           }
         } else {
           currentState.peers.set(payload.from, payload)
           if (payload.from !== currentState.appPeerId && !knownPeer) {
-            log('Peer joined room', { address: payload.address, peerId: payload.from })
+            log('Someone joined the room', { address: payload.address, peerId: payload.from })
             if (!currentState.announcedPeers.has(payload.from) && currentState.socket?.readyState === WebSocket.OPEN) {
               currentState.announcedPeers.add(payload.from)
               currentState.socket.send(JSON.stringify({ type: 'presence-ping' }))
@@ -590,7 +504,9 @@ export default function App() {
     async (roomName?: string | null) => {
       const socket = await ensureSocket()
       const room = (roomName || stateRef.current.room || makeRoomName()).trim()
+      if (!room) return
 
+      setCallNotice(null)
       stateRef.current.room = room
       window.history.replaceState({}, '', `${window.location.pathname}?room=${encodeURIComponent(room)}`)
       syncUi()
@@ -615,7 +531,7 @@ export default function App() {
       stateRef.current.sessionId = verified.sessionId
       stateRef.current.appPeerId = verified.appPeerId
       syncUi()
-      log('Login complete', { address: verified.address, walletMode: stateRef.current.walletMode })
+      log('Sign-in complete', { address: verified.address, walletMode: stateRef.current.walletMode })
 
       try {
         await ensureSocket()
@@ -695,12 +611,12 @@ export default function App() {
 
       setWalletHint(
         window.ethereum
-          ? 'Ethereum wallet detected. Slip into Plasmodium with a wallet or anonymously.'
-          : 'No Ethereum wallet detected. Anonymous entry is available.'
+          ? 'Ethereum wallet found. You can sign in with your wallet or continue anonymously.'
+          : 'No Ethereum wallet found. You can still continue anonymously.'
       )
       setLoginBusy(false)
       syncUi()
-      log('Plasmodium loaded')
+      log('App ready')
     })()
 
     return () => {
@@ -726,12 +642,13 @@ export default function App() {
   const presenceCount = otherPeers.length + (ui.room ? 1 : 0)
 
   const callStatus = useMemo(() => {
-    if (!ui.room) return 'Join a room to begin the call ritual.'
+    if (!ui.room) return 'Join a room to start your call.'
+    if (callNotice) return callNotice
     if (!ui.localStream) return 'Requesting camera and microphone access...'
-    if (otherPeers.length === 0) return 'Waiting for another body to condense into the room.'
+    if (otherPeers.length === 0) return 'Waiting for someone else to join the room.'
     if (ui.remoteStream) return 'Call connected.'
-    return 'Connecting call...'
-  }, [otherPeers.length, ui.localStream, ui.remoteStream, ui.room])
+    return 'Connecting your call...'
+  }, [callNotice, otherPeers.length, ui.localStream, ui.remoteStream, ui.room])
 
   const shareLink = useCallback(() => {
     const url = new URL(window.location.href)
@@ -782,13 +699,13 @@ export default function App() {
       const anonymousWallet = ethers.Wallet.createRandom()
       stateRef.current.anonymousWallet = anonymousWallet
       stateRef.current.address = anonymousWallet.address
-      stateRef.current.walletMode = 'Anonymous'
+      stateRef.current.walletMode = 'Guest'
       syncUi()
 
       await authenticate(anonymousWallet.address, (message) => anonymousWallet.signMessage(message))
     } catch (error) {
-      log(`Anonymous login failed: ${(error as Error).message}`)
-      setWalletHint(`Anonymous login failed: ${(error as Error).message}`)
+      log(`Guest sign-in failed: ${(error as Error).message}`)
+      setWalletHint(`Guest sign-in failed: ${(error as Error).message}`)
     } finally {
       setLoginBusy(false)
     }
@@ -806,11 +723,13 @@ export default function App() {
   const handleLeaveRoom = useCallback(() => {
     const state = stateRef.current
     if (!state.socket || !state.room) return
+    setCallNotice(null)
     state.socket.send(JSON.stringify({ type: 'leave-room' }))
   }, [])
 
   const handleSwitchIdentity = useCallback(() => {
     const state = stateRef.current
+    setCallNotice(null)
     if (state.room && state.socket?.readyState === WebSocket.OPEN) {
       state.socket.send(JSON.stringify({ type: 'leave-room' }))
     }
@@ -836,15 +755,17 @@ export default function App() {
 
     window.history.replaceState({}, '', window.location.pathname)
     syncUi()
-    log('Logged out')
+      log('Signed out')
   }, [log, resetAuthSession, syncUi])
+
+  const handleJoinRoom = useCallback(async () => {
+    await joinRoom(roomDraft)
+  }, [joinRoom, roomDraft])
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-white">
       <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-0 block h-screen w-screen" />
-      <GlassPlane canvasRef={glassCanvasRef} />
-
-      <div className="pointer-events-none fixed inset-0 z-[2] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.1),transparent_30%),linear-gradient(180deg,rgba(7,13,20,0.1),rgba(3,6,8,0.58)_55%,rgba(2,3,6,0.72))]" />
+      <div className="pointer-events-none fixed inset-0 z-[2] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.1),transparent_30%),radial-gradient(circle_at_20%_18%,rgba(126,255,219,0.09),transparent_24%),radial-gradient(circle_at_82%_14%,rgba(140,184,255,0.12),transparent_22%),linear-gradient(180deg,rgba(7,13,20,0.1),rgba(3,6,8,0.58)_55%,rgba(2,3,6,0.72))]" />
       <div className="pointer-events-none fixed inset-x-0 top-0 z-[3] h-28 bg-linear-to-b from-white/12 to-transparent opacity-70" />
 
       <div className="relative z-10 mx-auto w-[min(1220px,calc(100%-24px))] px-2 py-4 md:w-[min(1320px,calc(100%-40px))] md:px-0 md:py-6">
@@ -855,28 +776,31 @@ export default function App() {
                 <div className="relative p-7 md:p-10">
                   <div className="glass-pill inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/72">
                     <span className="h-2 w-2 rounded-full bg-[#98f9d9] shadow-[0_0_16px_rgba(152,249,217,0.9)]" />
-                    Liquid room
+                    Private video room
                   </div>
-                  <p className="mt-7 text-sm uppercase tracking-[0.34em] text-white/50">Plasmodium</p>
+                  <p className="mt-7 text-sm uppercase tracking-[0.34em] text-white/50">Video call</p>
                   <h1 className="hero-glow mt-4 max-w-[10ch] text-[clamp(58px,11vw,122px)] font-medium leading-[0.88] tracking-[-0.06em] text-white">
-                    Slip into the membrane.
+                    Start a room and share the link.
                   </h1>
                   <p className="mt-6 max-w-[560px] text-[17px] leading-7 text-white/68 md:text-[19px]">
-                    A soft-focus calling surface suspended above the slime. Identity, presence, and video flow through a liquid glass shell.
+                    Sign in, open a room, and invite someone to join your video call.
+                  </p>
+                  <p className="mt-4 max-w-[560px] text-sm leading-6 text-white/50">
+                    Flavor text: calm visuals, simple steps, and a lightweight room you can share in seconds.
                   </p>
 
                   <div className="mt-10 grid gap-3 sm:grid-cols-3">
                     <div className="glass-pill rounded-[24px] p-4">
                       <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Mode</div>
-                      <div className="mt-2 text-base text-white/88">Wallet or anonymous</div>
+                      <div className="mt-2 text-base text-white/88">Wallet or guest</div>
                     </div>
                     <div className="glass-pill rounded-[24px] p-4">
-                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Transport</div>
-                      <div className="mt-2 text-base text-white/88">Realtime relay + WebRTC</div>
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">How it works</div>
+                      <div className="mt-2 text-base text-white/88">Share a link and connect live</div>
                     </div>
                     <div className="glass-pill rounded-[24px] p-4">
-                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Mood</div>
-                      <div className="mt-2 text-base text-white/88">iOS liquid glass</div>
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Best for</div>
+                      <div className="mt-2 text-base text-white/88">Quick one-to-one calls</div>
                     </div>
                   </div>
                 </div>
@@ -887,14 +811,14 @@ export default function App() {
                       ✦
                     </div>
                     <h2 className="mt-5 text-[38px] font-medium tracking-[-0.04em] text-white">Sign in</h2>
-                    <p className="mt-3 text-[15px] leading-6 text-white/62">Choose an identity to enter the call surface.</p>
+                    <p className="mt-3 text-[15px] leading-6 text-white/62">Choose how you want to join.</p>
 
                     <div className="mt-7 flex flex-col gap-3">
                       <ActionButton disabled={ui.loginBusy || !window.ethereum} onClick={() => void handleWalletLogin()}>
-                        {ui.loginBusy && ui.walletMode !== 'Anonymous' ? 'Logging in...' : 'Enter with Ethereum'}
+                        {ui.loginBusy && ui.walletMode !== 'Guest' ? 'Signing in...' : 'Sign in with Ethereum'}
                       </ActionButton>
                       <ActionButton variant="ghost" disabled={ui.loginBusy} onClick={() => void handleAnonymousLogin()}>
-                        {ui.loginBusy && ui.walletMode === 'Anonymous' ? 'Entering...' : 'Continue anonymously'}
+                        {ui.loginBusy && ui.walletMode === 'Guest' ? 'Joining as guest...' : 'Continue as guest'}
                       </ActionButton>
                     </div>
 
@@ -915,10 +839,10 @@ export default function App() {
                   Ready to call
                 </div>
                 <h1 className="hero-glow mt-5 text-[clamp(56px,11vw,118px)] font-medium leading-[0.88] tracking-[-0.07em] text-white">
-                  Plasmodium
+                  Your call room
                 </h1>
                 <p className="mt-4 max-w-[720px] text-[18px] leading-7 text-white/62">
-                  Share a room link and let the call surface assemble itself when another presence joins you.
+                  Share your room link and the call will start when someone else joins.
                 </p>
               </Panel>
 
@@ -930,12 +854,8 @@ export default function App() {
                     <div className="mt-1 break-all text-sm text-white/58">{formatAddress(ui.address)}</div>
                   </div>
                   <div className="glass-pill rounded-[24px] p-4">
-                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Peer core</div>
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Peer ID</div>
                     <div className="mt-2 break-all text-sm text-white/72">{ui.appPeerId ?? '—'}</div>
-                  </div>
-                  <div className="glass-pill rounded-[24px] p-4">
-                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Room status</div>
-                    <div className="mt-2 text-sm text-white/92">{ui.room ? 'Inside room' : 'Pre-join lobby'}</div>
                   </div>
                 </div>
               </Panel>
@@ -944,18 +864,35 @@ export default function App() {
             <main className="grid grid-cols-12 gap-5">
               {!ui.room && (
                 <Panel className="col-span-12 rounded-[34px] border-white/14 p-5 md:p-7">
-                  <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+                  <div className="flex flex-col gap-5">
                     <div>
-                      <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Threshold</div>
-                      <h2 className="mt-3 text-[34px] font-medium tracking-[-0.05em] text-white">Open a room</h2>
+                      <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Room</div>
+                      <h2 className="mt-3 text-[34px] font-medium tracking-[-0.05em] text-white">Join or create a room</h2>
                       <p className="mt-3 max-w-[620px] text-white/60">
-                        Once you join, Plasmodium immediately asks for camera and microphone access and starts shaping the connection.
+                        When you join, the app will ask for camera and microphone access and start setting up your call.
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                      <ActionButton disabled={!ui.sessionId} onClick={() => void joinRoom()}>
+                    <form
+                      className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]"
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        void handleJoinRoom()
+                      }}
+                    >
+                      <input
+                        className="glass-input min-w-0 rounded-[22px] px-4 py-3.5 text-sm text-white outline-none"
+                        placeholder="Enter a room name"
+                        value={roomDraft}
+                        onChange={(event) => setRoomDraft(event.target.value)}
+                      />
+                      <ActionButton disabled={!ui.sessionId || !roomDraft.trim()} type="submit">
                         Join room
                       </ActionButton>
+                      <ActionButton variant="ghost" type="button" onClick={() => setRoomDraft(makeRoomName())}>
+                        Random room
+                      </ActionButton>
+                    </form>
+                    <div className="flex flex-wrap gap-3">
                       <ActionButton variant="ghost" onClick={handleSwitchIdentity}>
                         Log out
                       </ActionButton>
@@ -964,17 +901,26 @@ export default function App() {
                 </Panel>
               )}
 
-              <Panel className="col-span-12 rounded-[34px] border-white/14 p-4 md:p-5 xl:col-span-8">
+              <Panel className="col-span-12 rounded-[34px] border-white/14 p-4 md:p-5">
                 <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Call surface</div>
-                    <h2 className="mt-2 text-[34px] font-medium tracking-[-0.05em] text-white">Liquid presence</h2>
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Call</div>
+                    <h2 className="mt-2 text-[34px] font-medium tracking-[-0.05em] text-white">Video call</h2>
                     <p className="mt-2 max-w-[560px] text-white/60">{callStatus}</p>
                   </div>
-                  <div className="glass-pill inline-flex rounded-full px-4 py-3 text-sm text-white/70">
-                    {presenceCount} {presenceCount === 1 ? 'person' : 'people'} here
+                  <div className="flex flex-wrap gap-3">
+                    {ui.room && <div className="glass-pill inline-flex rounded-full px-4 py-3 text-sm text-white/74">Room {ui.room}</div>}
+                    <div className="glass-pill inline-flex rounded-full px-4 py-3 text-sm text-white/70">
+                      {presenceCount} {presenceCount === 1 ? 'person' : 'people'} here
+                    </div>
                   </div>
                 </div>
+
+                {callNotice && ui.room && (
+                  <div className="mb-5 rounded-[24px] border border-rose-200/18 bg-rose-300/10 px-4 py-3 text-sm text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                    {callNotice}
+                  </div>
+                )}
 
                 {(ui.localStream || ui.remoteStream) && (
                   <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
@@ -986,7 +932,7 @@ export default function App() {
                           playsInline
                           className="aspect-video min-h-[460px] w-full rounded-[24px] border border-white/10 bg-black/60 object-cover"
                         />
-                        <figcaption className="px-2 pb-1 pt-3 text-sm text-white/58">Remote</figcaption>
+                        <figcaption className="px-2 pb-1 pt-3 text-sm text-white/58">Other person</figcaption>
                       </figure>
                     ) : (
                       <div className="glass-panel grid min-h-[460px] place-items-center rounded-[30px] border border-white/14 bg-black/12 p-6 text-center">
@@ -994,8 +940,8 @@ export default function App() {
                           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] border border-white/14 bg-white/10 text-2xl">
                             ◎
                           </div>
-                          <p className="mt-5 text-lg text-white/78">Waiting for another stream</p>
-                          <p className="mt-2 text-sm text-white/48">When someone arrives, video will bloom here.</p>
+                          <p className="mt-5 text-lg text-white/78">Waiting for someone to join</p>
+                          <p className="mt-2 text-sm text-white/48">Their video will appear here when the call connects.</p>
                         </div>
                       </div>
                     )}
@@ -1030,7 +976,7 @@ export default function App() {
                 </div>
               </Panel>
 
-              <div className="col-span-12 grid gap-5 xl:col-span-4">
+              <div className="col-span-12 grid gap-5">
                 <Panel className="rounded-[34px] border-white/14 p-5 md:p-6">
                   <div className="flex items-center justify-between gap-4">
                     <div>
@@ -1055,7 +1001,7 @@ export default function App() {
 
                 <Panel className="rounded-[34px] border-white/14 p-5 md:p-6">
                   <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Activity</div>
-                  <h3 className="mt-2 text-[28px] font-medium tracking-[-0.05em] text-white">Trace</h3>
+                  <h3 className="mt-2 text-[28px] font-medium tracking-[-0.05em] text-white">Activity log</h3>
                   <pre className="mt-5 max-h-[420px] min-h-[260px] overflow-auto whitespace-pre-wrap break-words rounded-[24px] border border-white/10 bg-black/18 p-4 text-[13px] leading-6 text-white/68 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                     {ui.logs.join('\n')}
                   </pre>
