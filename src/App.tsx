@@ -1,4 +1,13 @@
-import { type ButtonHTMLAttributes, type PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type ButtonHTMLAttributes,
+  type PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
+import * as THREE from 'three'
 import { ethers } from 'ethers'
 import { startPhysarumBackground } from '@physarum/client/browser/physarum-background'
 
@@ -53,6 +62,10 @@ type UiState = {
   logs: string[]
 }
 
+type GlassPlaneProps = {
+  canvasRef: React.RefObject<HTMLCanvasElement | null>
+}
+
 function readRoomFromUrl() {
   return new URLSearchParams(window.location.search).get('room') || null
 }
@@ -79,14 +92,14 @@ function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ')
 }
 
+function formatAddress(address: string | null) {
+  if (!address) return 'Disconnected'
+  return `${address.slice(0, 8)}…${address.slice(-6)}`
+}
+
 function Panel({ children, className }: PropsWithChildren<{ className?: string }>) {
   return (
-    <section
-      className={cn(
-        'rounded-[24px] border border-emerald-200/10 bg-[rgba(6,15,12,0.72)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-[18px]',
-        className
-      )}
-    >
+    <section className={cn('glass-panel rounded-[32px] p-5 md:p-7', className)}>
       {children}
     </section>
   )
@@ -101,21 +114,126 @@ function ActionButton({
   return (
     <button
       className={cn(
-        'rounded-[14px] border px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-45',
+        'relative overflow-hidden rounded-[20px] border px-5 py-3.5 text-sm font-semibold tracking-[0.01em] transition duration-200 disabled:cursor-not-allowed disabled:opacity-45',
+        'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-linear-to-b before:from-white/22 before:to-transparent before:content-[""]',
         variant === 'primary'
-          ? 'border-emerald-200/20 bg-linear-to-br from-[#75ffbb] to-[#c0ffd8] text-[#052319] hover:brightness-105'
-          : 'border-emerald-200/20 bg-emerald-300/8 text-emerald-50 hover:bg-emerald-300/12',
+          ? 'border-white/18 bg-linear-to-b from-[#edfffb]/90 via-[#cfffe8]/78 to-[#8af6cf]/74 text-[#08211d] shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_18px_40px_rgba(91,255,200,0.18)] hover:scale-[1.01] hover:brightness-105'
+          : 'glass-pill border-white/12 text-white/92 hover:bg-white/10',
         className
       )}
       {...props}
     >
-      {children}
+      <span className="relative z-10">{children}</span>
     </button>
   )
 }
 
+function GlassPlane({ canvasRef }: GlassPlaneProps) {
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setClearColor(0x000000, 0)
+
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 20)
+    camera.position.z = 3.1
+
+    const group = new THREE.Group()
+    scene.add(group)
+
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.3, 5.2, 48, 48),
+      new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color('#08111a'),
+        transparent: true,
+        opacity: 0.38,
+        transmission: 0.72,
+        roughness: 0.2,
+        metalness: 0.08,
+        ior: 1.08,
+        thickness: 1.6,
+        reflectivity: 0.65,
+        clearcoat: 1,
+        clearcoatRoughness: 0.16,
+        sheen: 0.7,
+        sheenColor: new THREE.Color('#8ddfff'),
+        sheenRoughness: 0.45
+      })
+    )
+    group.add(plane)
+
+    const rim = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.36, 5.28),
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color('#c8efff'),
+        transparent: true,
+        opacity: 0.08
+      })
+    )
+    rim.position.z = -0.02
+    group.add(rim)
+
+    const ambient = new THREE.AmbientLight('#a5d9ff', 0.75)
+    scene.add(ambient)
+
+    const key = new THREE.PointLight('#9ad1ff', 6.5, 9, 2)
+    key.position.set(-1.8, 2.1, 2.4)
+    scene.add(key)
+
+    const fill = new THREE.PointLight('#8dffd6', 4.8, 9, 2)
+    fill.position.set(1.9, -1.5, 2.2)
+    scene.add(fill)
+
+    const resize = () => {
+      const width = window.innerWidth
+      const height = window.innerHeight
+      renderer.setSize(width, height, false)
+      camera.aspect = width / height
+      camera.updateProjectionMatrix()
+      plane.scale.set(Math.max(1.15, width / 820), Math.max(1.1, height / 760), 1)
+      rim.scale.copy(plane.scale)
+    }
+
+    resize()
+    window.addEventListener('resize', resize)
+
+    let frame = 0
+    const clock = new THREE.Clock()
+
+    const tick = () => {
+      const t = clock.getElapsedTime()
+      group.rotation.z = Math.sin(t * 0.14) * 0.04
+      plane.rotation.z = Math.sin(t * 0.18) * 0.03
+      plane.position.y = Math.sin(t * 0.28) * 0.05
+      ;(plane.material as THREE.MeshPhysicalMaterial).iridescence = 0.22 + (Math.sin(t * 0.4) + 1) * 0.08
+      key.position.x = -1.8 + Math.sin(t * 0.55) * 0.4
+      fill.position.y = -1.5 + Math.cos(t * 0.45) * 0.35
+      renderer.render(scene, camera)
+      frame = window.requestAnimationFrame(tick)
+    }
+
+    tick()
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', resize)
+      plane.geometry.dispose()
+      ;(plane.material as THREE.Material).dispose()
+      rim.geometry.dispose()
+      ;(rim.material as THREE.Material).dispose()
+      renderer.dispose()
+    }
+  }, [canvasRef])
+
+  return <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-[1] h-screen w-screen opacity-[0.92]" />
+}
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const glassCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
 
@@ -577,8 +695,8 @@ export default function App() {
 
       setWalletHint(
         window.ethereum
-          ? 'Ethereum wallet detected. Or continue anonymously.'
-          : 'No Ethereum wallet detected. Continue anonymously to enter.'
+          ? 'Ethereum wallet detected. Slip into Plasmodium with a wallet or anonymously.'
+          : 'No Ethereum wallet detected. Anonymous entry is available.'
       )
       setLoginBusy(false)
       syncUi()
@@ -603,17 +721,14 @@ export default function App() {
     }
   }, [closePeerConnection, log, setLoginBusy, setWalletHint, syncUi])
 
-  const otherPeers = useMemo(
-    () => ui.peers.filter((peer) => peer.from !== ui.appPeerId),
-    [ui.appPeerId, ui.peers]
-  )
+  const otherPeers = useMemo(() => ui.peers.filter((peer) => peer.from !== ui.appPeerId), [ui.appPeerId, ui.peers])
 
   const presenceCount = otherPeers.length + (ui.room ? 1 : 0)
 
   const callStatus = useMemo(() => {
-    if (!ui.room) return 'Join a room to start your call.'
+    if (!ui.room) return 'Join a room to begin the call ritual.'
     if (!ui.localStream) return 'Requesting camera and microphone access...'
-    if (otherPeers.length === 0) return 'Waiting for someone else to join the room.'
+    if (otherPeers.length === 0) return 'Waiting for another body to condense into the room.'
     if (ui.remoteStream) return 'Call connected.'
     return 'Connecting call...'
   }, [otherPeers.length, ui.localStream, ui.remoteStream, ui.room])
@@ -725,156 +840,227 @@ export default function App() {
   }, [log, resetAuthSession, syncUi])
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden text-[#e7fff3]">
-      <canvas
-        ref={canvasRef}
-        className="pointer-events-none fixed inset-0 z-0 block h-screen w-screen"
-      />
+    <div className="relative min-h-screen overflow-x-hidden text-white">
+      <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-0 block h-screen w-screen" />
+      <GlassPlane canvasRef={glassCanvasRef} />
 
-      <div className="relative z-10 mx-auto w-[min(1180px,calc(100%-32px))] py-8 pb-12">
+      <div className="pointer-events-none fixed inset-0 z-[2] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.1),transparent_30%),linear-gradient(180deg,rgba(7,13,20,0.1),rgba(3,6,8,0.58)_55%,rgba(2,3,6,0.72))]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-[3] h-28 bg-linear-to-b from-white/12 to-transparent opacity-70" />
+
+      <div className="relative z-10 mx-auto w-[min(1220px,calc(100%-24px))] px-2 py-4 md:w-[min(1320px,calc(100%-40px))] md:px-0 md:py-6">
         {!ui.sessionId ? (
-          <section className="grid min-h-[calc(100vh-80px)] place-items-center gap-5">
-            <p className="m-0 text-sm font-bold uppercase tracking-[0.18em] text-[#75ffbb]">Plasmodium</p>
+          <section className="grid min-h-[calc(100vh-48px)] place-items-center">
+            <div className="w-full max-w-[1080px] rounded-[42px] border border-white/10 bg-white/[0.045] p-3 shadow-[0_24px_120px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+              <div className="glass-panel grid overflow-hidden rounded-[34px] border-white/14 md:grid-cols-[1.15fr_0.85fr]">
+                <div className="relative p-7 md:p-10">
+                  <div className="glass-pill inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/72">
+                    <span className="h-2 w-2 rounded-full bg-[#98f9d9] shadow-[0_0_16px_rgba(152,249,217,0.9)]" />
+                    Liquid room
+                  </div>
+                  <p className="mt-7 text-sm uppercase tracking-[0.34em] text-white/50">Plasmodium</p>
+                  <h1 className="hero-glow mt-4 max-w-[10ch] text-[clamp(58px,11vw,122px)] font-medium leading-[0.88] tracking-[-0.06em] text-white">
+                    Slip into the membrane.
+                  </h1>
+                  <p className="mt-6 max-w-[560px] text-[17px] leading-7 text-white/68 md:text-[19px]">
+                    A soft-focus calling surface suspended above the slime. Identity, presence, and video flow through a liquid glass shell.
+                  </p>
 
-            <Panel className="w-full max-w-[480px] text-center">
-              <h1 className="m-0 text-[clamp(32px,7vw,54px)] leading-[0.95]">Sign in</h1>
-              <p className="mt-3 text-[#92b9a5]">Choose an identity to enter Plasmodium.</p>
+                  <div className="mt-10 grid gap-3 sm:grid-cols-3">
+                    <div className="glass-pill rounded-[24px] p-4">
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Mode</div>
+                      <div className="mt-2 text-base text-white/88">Wallet or anonymous</div>
+                    </div>
+                    <div className="glass-pill rounded-[24px] p-4">
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Transport</div>
+                      <div className="mt-2 text-base text-white/88">Realtime relay + WebRTC</div>
+                    </div>
+                    <div className="glass-pill rounded-[24px] p-4">
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-white/45">Mood</div>
+                      <div className="mt-2 text-base text-white/88">iOS liquid glass</div>
+                    </div>
+                  </div>
+                </div>
 
-              <div className="mt-[18px] flex flex-col gap-3">
-                <ActionButton disabled={ui.loginBusy || !window.ethereum} onClick={() => void handleWalletLogin()}>
-                  {ui.loginBusy && ui.walletMode !== 'Anonymous' ? 'Logging in...' : 'Log in with Ethereum'}
-                </ActionButton>
-                <ActionButton variant="ghost" disabled={ui.loginBusy} onClick={() => void handleAnonymousLogin()}>
-                  {ui.loginBusy && ui.walletMode === 'Anonymous' ? 'Entering...' : 'Continue anonymously'}
-                </ActionButton>
+                <div className="border-t border-white/10 p-4 md:border-t-0 md:border-l md:p-5">
+                  <Panel className="h-full rounded-[28px] border-white/14 bg-white/[0.06] text-center shadow-[0_20px_80px_rgba(0,0,0,0.25)]">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/16 bg-white/10 text-lg text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
+                      ✦
+                    </div>
+                    <h2 className="mt-5 text-[38px] font-medium tracking-[-0.04em] text-white">Sign in</h2>
+                    <p className="mt-3 text-[15px] leading-6 text-white/62">Choose an identity to enter the call surface.</p>
+
+                    <div className="mt-7 flex flex-col gap-3">
+                      <ActionButton disabled={ui.loginBusy || !window.ethereum} onClick={() => void handleWalletLogin()}>
+                        {ui.loginBusy && ui.walletMode !== 'Anonymous' ? 'Logging in...' : 'Enter with Ethereum'}
+                      </ActionButton>
+                      <ActionButton variant="ghost" disabled={ui.loginBusy} onClick={() => void handleAnonymousLogin()}>
+                        {ui.loginBusy && ui.walletMode === 'Anonymous' ? 'Entering...' : 'Continue anonymously'}
+                      </ActionButton>
+                    </div>
+
+                    <div className="mt-6 rounded-[22px] border border-white/10 bg-black/12 px-4 py-3 text-left text-sm leading-6 text-white/58 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                      {ui.walletHint}
+                    </div>
+                  </Panel>
+                </div>
               </div>
-
-              <div className="mt-4 text-sm text-[#92b9a5]">{ui.walletHint}</div>
-            </Panel>
+            </div>
           </section>
         ) : (
-          <div>
-            <header className="mb-7 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-[#75ffbb]">Ready to call</p>
-                <h1 className="my-2 text-[clamp(44px,8vw,88px)] leading-[0.95]">Plasmodium</h1>
-                <p className="max-w-[680px] text-lg text-[#92b9a5]">
-                  Share a room link and the call will start automatically when someone joins you.
+          <div className="space-y-5">
+            <header className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+              <Panel className="rounded-[34px] border-white/14 px-6 py-7 md:px-8 md:py-9">
+                <div className="glass-pill inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-white/56">
+                  <span className="h-2 w-2 rounded-full bg-[#95d6ff] shadow-[0_0_18px_rgba(149,214,255,0.9)]" />
+                  Ready to call
+                </div>
+                <h1 className="hero-glow mt-5 text-[clamp(56px,11vw,118px)] font-medium leading-[0.88] tracking-[-0.07em] text-white">
+                  Plasmodium
+                </h1>
+                <p className="mt-4 max-w-[720px] text-[18px] leading-7 text-white/62">
+                  Share a room link and let the call surface assemble itself when another presence joins you.
                 </p>
-              </div>
+              </Panel>
 
-              <div className="grid min-w-0 gap-3 rounded-[20px] border border-emerald-200/10 bg-[rgba(4,10,8,0.76)] p-[18px] lg:min-w-[300px]">
-                <div className="flex gap-4 max-sm:flex-col sm:justify-between">
-                  <span className="text-[#92b9a5]">Wallet</span>
-                  <strong className="break-all text-left sm:max-w-[240px] sm:text-right">{ui.address ?? 'Disconnected'}</strong>
+              <Panel className="rounded-[34px] border-white/14 p-4">
+                <div className="grid gap-3">
+                  <div className="glass-pill rounded-[24px] p-4">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Identity</div>
+                    <div className="mt-2 text-sm text-white/92">{ui.walletMode ?? 'Disconnected'}</div>
+                    <div className="mt-1 break-all text-sm text-white/58">{formatAddress(ui.address)}</div>
+                  </div>
+                  <div className="glass-pill rounded-[24px] p-4">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Peer core</div>
+                    <div className="mt-2 break-all text-sm text-white/72">{ui.appPeerId ?? '—'}</div>
+                  </div>
+                  <div className="glass-pill rounded-[24px] p-4">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Room status</div>
+                    <div className="mt-2 text-sm text-white/92">{ui.room ? 'Inside room' : 'Pre-join lobby'}</div>
+                  </div>
                 </div>
-                <div className="flex gap-4 max-sm:flex-col sm:justify-between">
-                  <span className="text-[#92b9a5]">Peer ID</span>
-                  <strong className="break-all text-left sm:max-w-[240px] sm:text-right">{ui.appPeerId ?? '—'}</strong>
-                </div>
-              </div>
+              </Panel>
             </header>
 
-            <main className="grid grid-cols-12 gap-[18px]">
+            <main className="grid grid-cols-12 gap-5">
               {!ui.room && (
-                <Panel className="col-span-12 text-center">
-                  <h2 className="text-2xl font-semibold">Join room</h2>
-                  <p className="mt-3 text-[#92b9a5]">
-                    Open a room to start your call. Once you join, Plasmodium will immediately request camera and
-                    microphone access.
-                  </p>
-                  <div className="mt-[18px] flex flex-wrap justify-center gap-3">
-                    <ActionButton disabled={!ui.sessionId} onClick={() => void joinRoom()}>
-                      Join room
-                    </ActionButton>
-                    <ActionButton variant="ghost" onClick={handleSwitchIdentity}>
-                      Log out
-                    </ActionButton>
+                <Panel className="col-span-12 rounded-[34px] border-white/14 p-5 md:p-7">
+                  <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Threshold</div>
+                      <h2 className="mt-3 text-[34px] font-medium tracking-[-0.05em] text-white">Open a room</h2>
+                      <p className="mt-3 max-w-[620px] text-white/60">
+                        Once you join, Plasmodium immediately asks for camera and microphone access and starts shaping the connection.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      <ActionButton disabled={!ui.sessionId} onClick={() => void joinRoom()}>
+                        Join room
+                      </ActionButton>
+                      <ActionButton variant="ghost" onClick={handleSwitchIdentity}>
+                        Log out
+                      </ActionButton>
+                    </div>
                   </div>
                 </Panel>
               )}
 
-              <Panel className="col-span-12">
-                <div className="mb-[18px] flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <Panel className="col-span-12 rounded-[34px] border-white/14 p-4 md:p-5 xl:col-span-8">
+                <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-2xl font-semibold">Call</h2>
-                    <p className="mt-2 text-[#92b9a5]">{callStatus}</p>
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Call surface</div>
+                    <h2 className="mt-2 text-[34px] font-medium tracking-[-0.05em] text-white">Liquid presence</h2>
+                    <p className="mt-2 max-w-[560px] text-white/60">{callStatus}</p>
                   </div>
-                  <div className="rounded-full border border-emerald-200/12 bg-emerald-300/8 px-[14px] py-[10px] text-sm text-[#92b9a5]">
+                  <div className="glass-pill inline-flex rounded-full px-4 py-3 text-sm text-white/70">
                     {presenceCount} {presenceCount === 1 ? 'person' : 'people'} here
                   </div>
                 </div>
 
                 {(ui.localStream || ui.remoteStream) && (
-                  <div className="mb-5">
-                    <div className="grid gap-[18px] md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
-                      {ui.remoteStream && (
-                        <figure className="m-0">
-                          <video
-                            ref={remoteVideoRef}
-                            autoPlay
-                            playsInline
-                            className="aspect-video min-h-[460px] w-full rounded-[18px] border border-emerald-200/16 bg-black object-cover"
-                          />
-                          <figcaption className="mt-2.5 text-sm text-[#92b9a5]">Remote</figcaption>
-                        </figure>
-                      )}
+                  <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+                    {ui.remoteStream ? (
+                      <figure className="glass-panel m-0 overflow-hidden rounded-[30px] border border-white/14 p-2">
+                        <video
+                          ref={remoteVideoRef}
+                          autoPlay
+                          playsInline
+                          className="aspect-video min-h-[460px] w-full rounded-[24px] border border-white/10 bg-black/60 object-cover"
+                        />
+                        <figcaption className="px-2 pb-1 pt-3 text-sm text-white/58">Remote</figcaption>
+                      </figure>
+                    ) : (
+                      <div className="glass-panel grid min-h-[460px] place-items-center rounded-[30px] border border-white/14 bg-black/12 p-6 text-center">
+                        <div>
+                          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] border border-white/14 bg-white/10 text-2xl">
+                            ◎
+                          </div>
+                          <p className="mt-5 text-lg text-white/78">Waiting for another stream</p>
+                          <p className="mt-2 text-sm text-white/48">When someone arrives, video will bloom here.</p>
+                        </div>
+                      </div>
+                    )}
 
-                      {ui.localStream && (
-                        <figure className="m-0 self-end">
-                          <video
-                            ref={localVideoRef}
-                            autoPlay
-                            muted
-                            playsInline
-                            className="aspect-video min-h-[150px] w-full rounded-[18px] border border-emerald-200/16 bg-black object-cover"
-                          />
-                          <figcaption className="mt-2.5 text-sm text-[#92b9a5]">You</figcaption>
-                        </figure>
-                      )}
-                    </div>
+                    {ui.localStream && (
+                      <figure className="glass-panel m-0 self-end overflow-hidden rounded-[28px] border border-white/14 p-2">
+                        <video
+                          ref={localVideoRef}
+                          autoPlay
+                          muted
+                          playsInline
+                          className="aspect-video min-h-[170px] w-full rounded-[22px] border border-white/10 bg-black/60 object-cover"
+                        />
+                        <figcaption className="px-2 pb-1 pt-3 text-sm text-white/58">You</figcaption>
+                      </figure>
+                    )}
                   </div>
                 )}
 
-                <div>
-                  <h3 className="text-sm font-medium text-[#92b9a5]">People here</h3>
-                  {otherPeers.length === 0 ? (
-                    <div className="mt-3 rounded-[14px] border border-emerald-200/10 bg-emerald-300/8 px-3 py-2.5">
-                      No one else is here yet.
-                    </div>
-                  ) : (
-                    <ul className="mt-3 grid list-none gap-2 p-0">
-                      {otherPeers.map((peer) => (
-                        <li
-                          key={peer.from}
-                          className="rounded-[14px] border border-emerald-200/10 bg-emerald-300/8 px-3 py-2.5"
-                        >
-                          <strong className="block break-all">{peer.address}</strong>
-                          <small className="mt-1 block break-all text-[#92b9a5]">{peer.from}</small>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <div className="mt-[18px] flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3">
                   {ui.room && (
                     <>
                       <ActionButton onClick={() => void handleCopyLink()}>Copy invite link</ActionButton>
                       <ActionButton variant="ghost" onClick={handleLeaveRoom}>
                         Leave room
                       </ActionButton>
+                      <ActionButton variant="ghost" onClick={handleSwitchIdentity}>
+                        Switch identity
+                      </ActionButton>
                     </>
                   )}
                 </div>
               </Panel>
 
-              <Panel className="col-span-12">
-                <h2 className="text-2xl font-semibold">Activity</h2>
-                <pre className="mt-4 min-h-[220px] max-h-[360px] overflow-auto whitespace-pre-wrap break-words text-[#d4ffe8]">
-                  {ui.logs.join('\n')}
-                </pre>
-              </Panel>
+              <div className="col-span-12 grid gap-5 xl:col-span-4">
+                <Panel className="rounded-[34px] border-white/14 p-5 md:p-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Presence</div>
+                      <h3 className="mt-2 text-[28px] font-medium tracking-[-0.05em] text-white">People here</h3>
+                    </div>
+                    <div className="glass-pill rounded-full px-3 py-2 text-xs text-white/64">{otherPeers.length} remote</div>
+                  </div>
+                  {otherPeers.length === 0 ? (
+                    <div className="glass-pill mt-5 rounded-[24px] px-4 py-4 text-white/56">No one else is here yet.</div>
+                  ) : (
+                    <ul className="mt-5 grid list-none gap-3 p-0">
+                      {otherPeers.map((peer) => (
+                        <li key={peer.from} className="glass-pill rounded-[24px] px-4 py-4">
+                          <strong className="block break-all text-white/92">{peer.address}</strong>
+                          <small className="mt-2 block break-all text-white/48">{peer.from}</small>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Panel>
+
+                <Panel className="rounded-[34px] border-white/14 p-5 md:p-6">
+                  <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Activity</div>
+                  <h3 className="mt-2 text-[28px] font-medium tracking-[-0.05em] text-white">Trace</h3>
+                  <pre className="mt-5 max-h-[420px] min-h-[260px] overflow-auto whitespace-pre-wrap break-words rounded-[24px] border border-white/10 bg-black/18 p-4 text-[13px] leading-6 text-white/68 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                    {ui.logs.join('\n')}
+                  </pre>
+                </Panel>
+              </div>
             </main>
           </div>
         )}
