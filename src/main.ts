@@ -1,5 +1,5 @@
-import { ethers } from 'https://esm.sh/ethers@6.15.0'
-import { startPhysarumBackground } from '/vendor/physarum-client.js'
+import { ethers } from 'ethers'
+import { startPhysarumBackground } from '@physarum/client/browser/physarum-background'
 
 const els = {
   loginView: document.getElementById('loginView'),
@@ -190,7 +190,7 @@ async function ensureSocket() {
     return state.socket
   }
 
-  state.socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`)
+  state.socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`)
   state.socket.addEventListener('message', async (event) => {
     const message = JSON.parse(event.data)
 

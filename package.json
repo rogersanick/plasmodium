@@ -1,16 +1,24 @@
 {
   "name": "plasmodium",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "PUBLIC_DIR=./public node ./node_modules/@physarum/server/server.js",
-    "dev": "PUBLIC_DIR=./public node ./node_modules/@physarum/server/server.js"
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:web": "vite",
+    "dev:server": "PUBLIC_DIR=./dist HOST=127.0.0.1 PORT=5177 npm --prefix ../physarum-server run dev",
+    "build": "npm --prefix ../physarum-client run build && npm --prefix ../physarum-server run build && vite build",
+    "preview": "PUBLIC_DIR=./dist HOST=127.0.0.1 PORT=5177 node ../physarum-server/dist/server.js"
   },
   "dependencies": {
     "@physarum/client": "file:../physarum-client",
     "@physarum/server": "file:../physarum-server",
     "ethers": "^6.15.0",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3"
   }
 }
