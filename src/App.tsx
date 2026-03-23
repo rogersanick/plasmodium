@@ -832,30 +832,36 @@ export default function App() {
           </section>
         ) : (
           <div className="space-y-5">
-            <header className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-              <Panel className="rounded-[34px] border-white/14 px-6 py-7 md:px-8 md:py-9">
-                <div className="glass-pill inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-white/56">
-                  <span className="h-2 w-2 rounded-full bg-[#95d6ff] shadow-[0_0_18px_rgba(149,214,255,0.9)]" />
-Private by default
+            <header className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr] xl:items-stretch">
+              <Panel className="rounded-[30px] border-white/14 px-5 py-4 md:px-6 md:py-5">
+                <div className="flex h-full flex-col justify-center gap-3 md:flex-row md:items-center md:justify-between md:gap-5">
+                  <div className="min-w-0">
+                    <div className="glass-pill inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-white/56">
+                      <span className="h-2 w-2 rounded-full bg-[#95d6ff] shadow-[0_0_18px_rgba(149,214,255,0.9)]" />
+                      Private by default
+                    </div>
+                    <p className="mt-3 max-w-[640px] text-[15px] leading-6 text-white/62 md:text-[16px]">
+                      Share a room link for a direct peer-to-peer call, with optional Ethereum address verification.
+                    </p>
+                  </div>
+                  {ui.room && (
+                    <div className="glass-pill inline-flex w-fit shrink-0 rounded-full px-4 py-3 text-sm text-white/74">
+                      Room {ui.room}
+                    </div>
+                  )}
                 </div>
-                <h1 className="hero-glow mt-5 text-[clamp(56px,11vw,118px)] font-medium leading-[0.88] tracking-[-0.07em] text-white">
-Your private room
-                </h1>
-                <p className="mt-4 max-w-[720px] text-[18px] leading-7 text-white/62">
-                  Share a room link for a direct peer-to-peer call, with the option to verify the Ethereum address on the other end.
-                </p>
               </Panel>
 
-              <Panel className="rounded-[34px] border-white/14 p-4">
-                <div className="grid gap-3">
-                  <div className="glass-pill rounded-[24px] p-4">
+              <Panel className="rounded-[30px] border-white/14 p-3 md:p-4">
+                <div className="grid gap-2 md:grid-cols-2">
+                  <div className="glass-pill rounded-[22px] px-4 py-3">
                     <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Identity</div>
-                    <div className="mt-2 text-sm text-white/92">{ui.walletMode ?? 'Disconnected'}</div>
+                    <div className="mt-1.5 text-sm text-white/92">{ui.walletMode ?? 'Disconnected'}</div>
                     <div className="mt-1 break-all text-sm text-white/58">{formatAddress(ui.address)}</div>
                   </div>
-                  <div className="glass-pill rounded-[24px] p-4">
+                  <div className="glass-pill rounded-[22px] px-4 py-3">
                     <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Peer ID</div>
-                    <div className="mt-2 break-all text-sm text-white/72">{ui.appPeerId ?? '—'}</div>
+                    <div className="mt-1.5 break-all text-sm text-white/72">{ui.appPeerId ?? '—'}</div>
                   </div>
                 </div>
               </Panel>
