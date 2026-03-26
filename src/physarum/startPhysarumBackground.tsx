@@ -1,8 +1,10 @@
-import { createRoot, useThree } from '@react-three/fiber'
+import { createRoot, extend, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { getSpeciesOne, getSpeciesThree, getSpeciesTwo } from './DefaultProps'
 import usePhysarumMaterial from './usePhysarum'
+
+extend(THREE)
 
 type StartPhysarumBackgroundOptions = {
   canvas: HTMLCanvasElement

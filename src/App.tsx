@@ -39,7 +39,6 @@ type MutableAppState = {
   address: string | null
   walletMode: string | null
   anonymousWallet: ethers.HDNodeWallet | ethers.Wallet | null
-  sessionId: string | null
   appPeerId: string | null
   room: string | null
   localStream: MediaStream | null
@@ -55,7 +54,6 @@ type MutableAppState = {
 type UiState = {
   address: string | null
   walletMode: string | null
-  sessionId: string | null
   appPeerId: string | null
   room: string | null
   localStream: MediaStream | null
@@ -138,7 +136,6 @@ export default function App() {
     address: null,
     walletMode: null,
     anonymousWallet: null,
-    sessionId: null,
     appPeerId: null,
     room: readRoomFromUrl(),
     localStream: null,
@@ -154,7 +151,6 @@ export default function App() {
   const [ui, setUi] = useState<UiState>({
     address: null,
     walletMode: null,
-    sessionId: null,
     appPeerId: null,
     room: readRoomFromUrl(),
     localStream: null,
@@ -170,7 +166,6 @@ export default function App() {
       ...current,
       address: state.address,
       walletMode: state.walletMode,
-      sessionId: state.sessionId,
       appPeerId: state.appPeerId,
       room: state.room,
       localStream: state.localStream,
@@ -308,7 +303,7 @@ export default function App() {
       if (!room) return
 
       const state = stateRef.current
-      if (!state.sessionId || !state.appPeerId || !state.address) {
+      if (!state.appPeerId || !state.address) {
         log('Sign in before joining a room')
         return
       }
@@ -408,23 +403,28 @@ export default function App() {
     [clearRemoteState, closeRealtimeRoom, log, maybePromptMedia, publishPresence, syncUi]
   )
 
-  const authenticate = useCallback(
-    async (address: string, signer: (message: string) => Promise<string>) => {
-      const challenge = await fetchJson<{ message: string; nonce: string }>('/api/auth/request', {
-        method: 'POST',
-        body: JSON.stringify({ address, chainId: 1 })
-      })
+  const proveWalletOwnership = useCallback(
+    async (address: string, signer: (message: string) => Promise<string>, walletMode: string) => {
+      const proofMessage = [
+        'Plasmodium identity proof',
+        '',
+        'Sign this message to prove you control this wallet for peer-to-peer calling.',
+        `Address: ${address}`,
+        `Issued at: ${new Date().toISOString()}`
+      ].join('\n')
 
-      const signature = await signer(challenge.message)
-      const verified = await fetchJson<{ sessionId: string; appPeerId: string; address: string }>('/api/auth/verify', {
-        method: 'POST',
-        body: JSON.stringify({ nonce: challenge.nonce, signature })
-      })
+      const signature = await signer(proofMessage)
+      const recoveredAddress = ethers.verifyMessage(proofMessage, signature)
 
-      stateRef.current.sessionId = verified.sessionId
-      stateRef.current.appPeerId = verified.appPeerId
+      if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
+        throw new Error('Wallet signature did not match the selected address')
+      }
+
+      stateRef.current.address = address
+      stateRef.current.walletMode = walletMode
+      stateRef.current.appPeerId = crypto.randomUUID()
       syncUi()
-      log('Sign-in complete', { address: verified.address, walletMode: stateRef.current.walletMode })
+      log('Identity proof complete', { address, walletMode })
 
       if (stateRef.current.room && stateRef.current.config?.trysteroAppId) {
         await joinRoom(stateRef.current.room)
@@ -434,7 +434,6 @@ export default function App() {
   )
 
   const resetAuthSession = useCallback(() => {
-    stateRef.current.sessionId = null
     stateRef.current.appPeerId = null
     stateRef.current.room = readRoomFromUrl()
     stateRef.current.peers.clear()
@@ -488,7 +487,7 @@ export default function App() {
       syncUi()
       log('App ready')
 
-      if (stateRef.current.sessionId && stateRef.current.room && !stateRef.current.realtimeRoom) {
+      if (stateRef.current.appPeerId && stateRef.current.room && !stateRef.current.realtimeRoom) {
         await joinRoom(stateRef.current.room)
       }
     })()
@@ -569,22 +568,18 @@ export default function App() {
         method: 'eth_requestAccounts'
       })) as string[]
 
-      stateRef.current.address = address
-      stateRef.current.walletMode = 'Ethereum wallet'
-      syncUi()
-
-      await authenticate(address, async (message) => {
+      await proveWalletOwnership(address, async (message) => {
         return (await window.ethereum?.request({
           method: 'personal_sign',
           params: [message, address]
         })) as string
-      })
+      }, 'Ethereum wallet')
     } catch (error) {
       log(`Login failed: ${(error as Error).message}`)
     } finally {
       setLoginBusy(false)
     }
-  }, [authenticate, log, resetAuthSession, setLoginBusy, syncUi])
+  }, [log, proveWalletOwnership, resetAuthSession, setLoginBusy])
 
   const handleAnonymousLogin = useCallback(async () => {
     try {
@@ -593,17 +588,14 @@ export default function App() {
 
       const anonymousWallet = ethers.Wallet.createRandom()
       stateRef.current.anonymousWallet = anonymousWallet
-      stateRef.current.address = anonymousWallet.address
-      stateRef.current.walletMode = 'Guest'
-      syncUi()
 
-      await authenticate(anonymousWallet.address, (message) => anonymousWallet.signMessage(message))
+      await proveWalletOwnership(anonymousWallet.address, (message) => anonymousWallet.signMessage(message), 'Guest')
     } catch (error) {
       log(`Guest sign-in failed: ${(error as Error).message}`)
     } finally {
       setLoginBusy(false)
     }
-  }, [authenticate, log, resetAuthSession, setLoginBusy, syncUi])
+  }, [log, proveWalletOwnership, resetAuthSession, setLoginBusy])
 
   const handleCopyLink = useCallback(async () => {
     try {
@@ -654,7 +646,7 @@ export default function App() {
       <div className="pointer-events-none fixed inset-x-0 top-0 z-[3] h-28 bg-linear-to-b from-white/12 to-transparent opacity-70" />
 
       <div className="relative z-10 mx-auto w-[min(1220px,calc(100%-24px))] px-2 py-4 md:w-[min(1320px,calc(100%-40px))] md:px-0 md:py-6">
-        {!ui.sessionId ? (
+        {!ui.appPeerId ? (
           <section className="grid min-h-[calc(100vh-48px)] place-items-center">
             <div className="w-full max-w-[1080px] space-y-3 rounded-[42px] border border-white/10 bg-white/[0.045] p-3 shadow-[0_24px_120px_rgba(0,0,0,0.35)] backdrop-blur-sm">
               <div className="relative overflow-hidden rounded-[34px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.07))] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-1px_0_rgba(255,255,255,0.05),0_20px_60px_rgba(0,0,0,0.32),0_2px_12px_rgba(129,181,255,0.08)] [backdrop-filter:blur(28px)_saturate(150%)] [-webkit-backdrop-filter:blur(28px)_saturate(150%)] after:pointer-events-none after:absolute after:inset-0 after:[border-radius:inherit] after:bg-[linear-gradient(180deg,rgba(255,255,255,0.16),transparent_28%,transparent_72%,rgba(255,255,255,0.05))] after:opacity-90 lg:flex">
@@ -663,7 +655,7 @@ export default function App() {
                     <span className="h-2 w-2 rounded-full bg-[#98f9d9] shadow-[0_0_16px_rgba(152,249,217,0.9)]" />
                     Private video room
                   </div>
-                  <h1 className="mt-4 max-w-[calc(100vw-120px)] font-medium uppercase leading-[0.88] tracking-[-0.04em] text-white [font-family:'Orbitron',ui-sans-serif,system-ui,sans-serif] [text-shadow:0_0_32px_rgba(153,210,255,0.28),0_0_12px_rgba(147,247,212,0.18)] text-[clamp(36px,9.5vw,64px)] md:max-w-[10ch] md:text-[clamp(58px,6vw,122px)]">
+                  <h1 className="mt-4 w-full max-w-full font-medium uppercase leading-[0.88] tracking-[-0.04em] text-white [font-family:'Orbitron',ui-sans-serif,system-ui,sans-serif] [text-shadow:0_0_32px_rgba(153,210,255,0.28),0_0_12px_rgba(147,247,212,0.18)] text-[clamp(36px,9.5vw,64px)] md:max-w-[10ch] md:text-[clamp(52px,5.5vw,96px)] xl:text-[clamp(64px,6vw,112px)]">
                     Plasmodium
                   </h1>
                   <p className="mt-6 max-w-[560px] text-[17px] leading-7 text-white/68 md:text-[19px]">
@@ -677,8 +669,8 @@ export default function App() {
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/16 bg-white/10 text-lg text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
                       ✦
                     </div>
-                    <h2 className="mt-5 text-[38px] font-medium tracking-[-0.04em] text-white">Sign in</h2>
-                    <p className="mt-3 text-[15px] leading-6 text-white/62">Choose private guest access or prove wallet ownership.</p>
+                    <h2 className="mt-5 text-[38px] font-medium tracking-[-0.04em] text-white">Verify identity</h2>
+                    <p className="mt-3 text-[15px] leading-6 text-white/62">Create a private guest wallet or prove you control your Ethereum wallet.</p>
 
                     <div className="mt-7 flex flex-col gap-3">
                       <button
@@ -687,7 +679,7 @@ export default function App() {
                         onClick={() => void handleWalletLogin()}
                       >
                         <span className="relative z-10">
-                          {ui.loginBusy && ui.walletMode !== 'Guest' ? 'Signing in...' : 'Sign in with Ethereum'}
+                          {ui.loginBusy && ui.walletMode !== 'Guest' ? 'Verifying wallet...' : 'Verify Ethereum wallet'}
                         </span>
                       </button>
                       <button
@@ -696,7 +688,7 @@ export default function App() {
                         onClick={() => void handleAnonymousLogin()}
                       >
                         <span className="relative z-10">
-                          {ui.loginBusy && ui.walletMode === 'Guest' ? 'Joining as guest...' : 'Continue as guest'}
+                          {ui.loginBusy && ui.walletMode === 'Guest' ? 'Creating guest wallet...' : 'Continue as guest'}
                         </span>
                       </button>
                     </div>
@@ -782,7 +774,7 @@ export default function App() {
                       />
                       <button
                         className="relative overflow-hidden rounded-[20px] border border-white/18 bg-linear-to-b from-[#edfffb]/90 via-[#cfffe8]/78 to-[#8af6cf]/74 px-5 py-3.5 text-sm font-semibold tracking-[0.01em] text-[#08211d] shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_18px_40px_rgba(91,255,200,0.18)] transition duration-200 hover:scale-[1.01] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:bg-linear-to-b before:from-white/22 before:to-transparent before:content-['']"
-                        disabled={!ui.sessionId || !roomDraft.trim()}
+                        disabled={!ui.appPeerId || !roomDraft.trim()}
                         type="submit"
                       >
                         <span className="relative z-10">Join room</span>

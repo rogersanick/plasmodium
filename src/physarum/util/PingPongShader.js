@@ -46,9 +46,8 @@ export class PingPongShader {
 
     this.renderTarget0 = new THREE.WebGLRenderTarget(width, height, opts);
     this.renderTarget1 = new THREE.WebGLRenderTarget(width, height, opts);
-
-    this.renderTarget0.texture = texture.clone();
-    this.renderTarget1.texture = texture;
+    this.initialTexture = texture;
+    this.hasRendered = false;
 
     this.currentRenderTarget = this.renderTarget0;
     this.nextRenderTarget = this.renderTarget1;
@@ -89,8 +88,11 @@ export class PingPongShader {
         THREE.FloatType
       );
       texture.needsUpdate = true;
-      this.renderTarget0.texture = texture.clone();
-      this.renderTarget1.texture = texture;
+      if (this.initialTexture) {
+        this.initialTexture.dispose();
+      }
+      this.initialTexture = texture;
+      this.hasRendered = false;
     }
   }
   setUniform(key, value) {
@@ -121,7 +123,9 @@ export class PingPongShader {
     this.switchRenderTargets();
 
     this.mesh.visible = true;
-    this.material.uniforms.input_texture.value = this.getTexture();
+    this.material.uniforms.input_texture.value = this.hasRendered
+      ? this.getTexture()
+      : this.initialTexture;
 
     for (let key in updatedUniforms) {
       this.material.uniforms[key].value = updatedUniforms[key];
@@ -132,6 +136,7 @@ export class PingPongShader {
     renderer.render(this.getScene(), this.getCamera());
     renderer.setRenderTarget(prevRenderTarget);
     this.mesh.visible = false;
+    this.hasRendered = true;
   }
   getScene() {
     if (!this.scene) {
@@ -153,8 +158,12 @@ export class PingPongShader {
     this.mesh = null;
     this.camera = null;
     this.material.dispose();
-    this.currentRenderTarget.texture.dispose();
-    this.nextRenderTarget.texture.dispose();
+    if (this.initialTexture) {
+      this.initialTexture.dispose();
+      this.initialTexture = null;
+    }
+    this.renderTarget0.dispose();
+    this.renderTarget1.dispose();
     this.renderTarget0 = null;
     this.renderTarget1 = null;
     this.currentRenderTarget = null;
