@@ -3,11 +3,7 @@ import { ethers } from 'ethers'
 import { joinRoom as joinTrysteroRoom, selfId } from 'trystero'
 import { startPhysarumBackground } from './physarum/startPhysarumBackground'
 
-type AppConfig = {
-  chainId?: number
-  defaultRoom?: string
-  trysteroAppId?: string
-}
+const TRYSTERO_APP_ID = (import.meta.env.VITE_TRYSTERO_APP_ID || 'plasmodium').trim()
 
 type PeerRecord = {
   from: string
@@ -35,7 +31,6 @@ type PresenceSender = (
 ) => Promise<void>
 
 type MutableAppState = {
-  config: AppConfig | null
   address: string | null
   walletMode: string | null
   anonymousWallet: ethers.HDNodeWallet | ethers.Wallet | null
@@ -103,20 +98,6 @@ function readRoomFromUrl() {
   return new URLSearchParams(window.location.search).get('room') || null
 }
 
-async function fetchJson<T>(url: string, options: RequestInit = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'content-type': 'application/json',
-      ...(options.headers ?? {})
-    }
-  })
-
-  const body = await response.json()
-  if (!response.ok) throw new Error(body.error || `Request failed: ${response.status}`)
-  return body as T
-}
-
 function makeRoomName() {
   return `room-${crypto.randomUUID().slice(0, 8)}`
 }
@@ -132,7 +113,6 @@ export default function App() {
   const [callNotice, setCallNotice] = useState<string | null>(null)
 
   const stateRef = useRef<MutableAppState>({
-    config: null,
     address: null,
     walletMode: null,
     anonymousWallet: null,
@@ -308,17 +288,11 @@ export default function App() {
         return
       }
 
-      const config = state.config
-      if (!config?.trysteroAppId) {
-        log('Realtime config is not ready yet')
-        return
-      }
-
       if (state.realtimeRoom) {
         closeRealtimeRoom()
       }
 
-      const realtimeRoom = joinTrysteroRoom({ appId: config.trysteroAppId }, room)
+      const realtimeRoom = joinTrysteroRoom({ appId: TRYSTERO_APP_ID }, room)
       const [sendPresence, getPresence] = realtimeRoom.makeAction<PresencePayload>('presence')
 
       realtimeRoom.onPeerJoin((peerId) => {
@@ -426,7 +400,7 @@ export default function App() {
       syncUi()
       log('Identity proof complete', { address, walletMode })
 
-      if (stateRef.current.room && stateRef.current.config?.trysteroAppId) {
+      if (stateRef.current.room) {
         await joinRoom(stateRef.current.room)
       }
     },
@@ -470,31 +444,15 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    let disposed = false
+    setLoginBusy(false)
+    syncUi()
+    log('App ready')
 
-    void (async () => {
-      try {
-        stateRef.current.config = await fetchJson('/api/config')
-      } catch (error) {
-        if (!disposed) {
-          log(`Config load failed: ${(error as Error).message}`)
-        }
-      }
-
-      if (disposed) return
-
-      setLoginBusy(false)
-      syncUi()
-      log('App ready')
-
-      if (stateRef.current.appPeerId && stateRef.current.room && !stateRef.current.realtimeRoom) {
-        await joinRoom(stateRef.current.room)
-      }
-    })()
+    if (stateRef.current.appPeerId && stateRef.current.room && !stateRef.current.realtimeRoom) {
+      void joinRoom(stateRef.current.room)
+    }
 
     return () => {
-      disposed = true
-
       const state = stateRef.current
       const payload = makePresencePayload()
       if (payload && state.presenceSender) {
