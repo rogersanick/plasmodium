@@ -655,7 +655,7 @@ export default function App() {
                     <span className="h-2 w-2 rounded-full bg-[#98f9d9] shadow-[0_0_16px_rgba(152,249,217,0.9)]" />
                     Private video room
                   </div>
-                  <h1 className="mt-4 w-full max-w-full font-medium uppercase leading-[0.88] tracking-[-0.04em] text-white [font-family:'Orbitron',ui-sans-serif,system-ui,sans-serif] [text-shadow:0_0_32px_rgba(153,210,255,0.28),0_0_12px_rgba(147,247,212,0.18)] text-[clamp(36px,9.5vw,64px)] md:max-w-[10ch] md:text-[clamp(52px,5.5vw,96px)] xl:text-[clamp(64px,6vw,112px)]">
+                  <h1 className="mt-4 w-full text-5xl max-w-xl font-medium uppercase leading-[0.88] tracking-[-0.04em] text-white [font-family:'Orbitron',ui-sans-serif,system-ui,sans-serif] [text-shadow:0_0_32px_rgba(153,210,255,0.28),0_0_12px_rgba(147,247,212,0.18)]">
                     Plasmodium
                   </h1>
                   <p className="mt-6 max-w-[560px] text-[17px] leading-7 text-white/68 md:text-[19px]">
