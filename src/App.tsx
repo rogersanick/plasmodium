@@ -578,15 +578,15 @@ export default function App() {
   const callStatus = useMemo(() => {
     if (!ui.room) return 'Join a room to start your call.'
     if (callNotice) return callNotice
-    if (!ui.localStream) return 'Requesting camera and microphone access...'
-    if (otherPeers.length === 0) return 'Waiting for someone else to join the room.'
+    if (!ui.localStream) return 'Getting your camera and microphone ready...'
+    if (otherPeers.length === 0) return 'You’re the first one here. Share the room link to invite someone in.'
     if (remoteStreams.length > 0) {
-      return `Connected to ${remoteStreams.length} remote ${remoteStreams.length === 1 ? 'stream' : 'streams'}.`
+      return `${remoteStreams.length} live ${remoteStreams.length === 1 ? 'video feed is' : 'video feeds are'} on screen.`
     }
     if (broadcasterCount > 0 && ui.role !== 'broadcaster') {
-      return `${broadcasterCount} ${broadcasterCount === 1 ? 'person is' : 'people are'} broadcasting.`
+      return `${broadcasterCount} ${broadcasterCount === 1 ? 'person is' : 'people are'} on camera right now.`
     }
-    return `Connected to ${otherPeers.length} ${otherPeers.length === 1 ? 'participant' : 'participants'}.`
+    return `${otherPeers.length} ${otherPeers.length === 1 ? 'other person is' : 'other people are'} in the room.`
   }, [broadcasterCount, callNotice, otherPeers.length, remoteStreams.length, ui.localStream, ui.role, ui.room])
 
   const peerLookupByPeerId = useMemo(() => new Map(otherPeers.map((peer) => [peer.peerId, peer])), [otherPeers])
@@ -747,13 +747,13 @@ export default function App() {
                 <div className="relative min-w-0 flex-1 p-7 md:p-10">
                   <div className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.26),0_12px_40px_rgba(0,0,0,0.2)] [backdrop-filter:blur(20px)_saturate(150%)] [-webkit-backdrop-filter:blur(20px)_saturate(150%)]">
                     <span className="h-2 w-2 rounded-full bg-[#98f9d9] shadow-[0_0_16px_rgba(152,249,217,0.9)]" />
-                    Direct Trystero rooms
+Private video calls
                   </div>
                   <h1 className="mt-4 w-full max-w-xl text-5xl font-medium uppercase leading-[0.88] tracking-[-0.04em] text-white [font-family:'Orbitron',ui-sans-serif,system-ui,sans-serif] [text-shadow:0_0_32px_rgba(153,210,255,0.28),0_0_12px_rgba(147,247,212,0.18)]">
                     Plasmodium
                   </h1>
                   <p className="mt-6 max-w-[560px] text-[17px] leading-7 text-white/68 md:text-[19px]">
-                    Peer-to-peer presence, chat, and live video rooms with wallet-backed identity. Trystero handles discovery; Plasmodium owns the room protocol and behavior.
+                    A lightweight place to meet, chat, and share your camera with a private room link and a softer, more familiar interface.
                   </p>
                 </div>
 
@@ -762,8 +762,8 @@ export default function App() {
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/16 bg-white/10 text-lg text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
                       ✦
                     </div>
-                    <h2 className="mt-5 text-[38px] font-medium tracking-[-0.04em] text-white">Verify identity</h2>
-                    <p className="mt-3 text-[15px] leading-6 text-white/62">Use your Ethereum wallet or spin up a private guest identity in-browser.</p>
+                    <h2 className="mt-5 text-[38px] font-medium tracking-[-0.04em] text-white">Start your call</h2>
+                    <p className="mt-3 text-[15px] leading-6 text-white/62">Sign in with your wallet or jump in with a guest profile to create and share a room.</p>
 
                     <div className="mt-7 flex flex-col gap-3">
                       <button
@@ -771,14 +771,14 @@ export default function App() {
                         disabled={ui.loginBusy || !hasWallet}
                         onClick={() => void handleWalletLogin()}
                       >
-                        {ui.loginBusy && ui.walletMode !== 'Guest' ? 'Verifying wallet...' : 'Verify Ethereum wallet'}
+                        {ui.loginBusy && ui.walletMode !== 'Guest' ? 'Checking wallet...' : 'Continue with Ethereum'}
                       </button>
                       <button
                         className="relative overflow-hidden rounded-[20px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] px-5 py-3.5 text-sm font-semibold tracking-[0.01em] text-white/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.26),0_12px_40px_rgba(0,0,0,0.2)] transition duration-200 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45"
                         disabled={ui.loginBusy}
                         onClick={() => void handleAnonymousLogin()}
                       >
-                        {ui.loginBusy && ui.walletMode === 'Guest' ? 'Creating guest wallet...' : 'Continue as guest'}
+                        {ui.loginBusy && ui.walletMode === 'Guest' ? 'Setting up guest...' : 'Continue as guest'}
                       </button>
                     </div>
                   </section>
@@ -794,10 +794,10 @@ export default function App() {
                   <div className="min-w-0">
                     <div className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-white/56 shadow-[inset_0_1px_0_rgba(255,255,255,0.26),0_12px_40px_rgba(0,0,0,0.2)]">
                       <PresenceDot active={ui.role === 'broadcaster'} />
-                      {ui.role === 'broadcaster' ? 'Broadcasting' : 'Viewer mode'}
+                      {ui.role === 'broadcaster' ? 'In the spotlight' : 'Ready to join'}
                     </div>
                     <p className="mt-3 max-w-[640px] text-[15px] leading-6 text-white/62 md:text-[16px]">
-                      Presence, chat, and live media all run directly in the app protocol over Trystero room actions.
+                      Share a room link, see who joined, chat in the sidebar, and hop on camera when you’re ready.
                     </p>
                   </div>
                   {ui.room && (
@@ -829,9 +829,9 @@ export default function App() {
                   <div className="flex flex-col gap-5">
                     <div>
                       <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Room</div>
-                      <h2 className="mt-3 text-[34px] font-medium tracking-[-0.05em] text-white">Join or create a room</h2>
+                      <h2 className="mt-3 text-[34px] font-medium tracking-[-0.05em] text-white">Meet now</h2>
                       <p className="mt-3 max-w-[620px] text-white/60">
-                        Joining opens a direct Trystero room. Media, presence, and chat all run in-app from there.
+                        Start a new room or join an existing one, then share the link like any familiar video call app.
                       </p>
                     </div>
                     <form
@@ -861,8 +861,8 @@ export default function App() {
               <section className="relative col-span-12 rounded-[34px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.07))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-1px_0_rgba(255,255,255,0.05),0_20px_60px_rgba(0,0,0,0.32),0_2px_12px_rgba(129,181,255,0.08)] [backdrop-filter:blur(28px)_saturate(150%)] [-webkit-backdrop-filter:blur(28px)_saturate(150%)] after:pointer-events-none after:absolute after:inset-0 after:[border-radius:inherit] after:bg-[linear-gradient(180deg,rgba(255,255,255,0.16),transparent_28%,transparent_72%,rgba(255,255,255,0.05))] after:opacity-90 md:p-5">
                 <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Room state</div>
-                    <h2 className="mt-2 text-[34px] font-medium tracking-[-0.05em] text-white">Presence + media</h2>
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Call</div>
+                    <h2 className="mt-2 text-[34px] font-medium tracking-[-0.05em] text-white">Conversation</h2>
                     <p className="mt-2 max-w-[560px] text-white/60">{callStatus}</p>
                   </div>
                   <div className="flex flex-wrap gap-3">
@@ -883,7 +883,7 @@ export default function App() {
                         Copy invite link
                       </button>
                       <button className="rounded-[20px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] px-5 py-3.5 text-sm font-semibold tracking-[0.01em] text-white/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.26),0_12px_40px_rgba(0,0,0,0.2)]" onClick={() => void handleToggleBroadcast()}>
-                        {ui.role === 'broadcaster' ? 'Stop broadcasting' : 'Go live'}
+                        {ui.role === 'broadcaster' ? 'Stop sharing camera' : 'Turn on camera'}
                       </button>
                       <button className="rounded-[20px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] px-5 py-3.5 text-sm font-semibold tracking-[0.01em] text-white/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.26),0_12px_40px_rgba(0,0,0,0.2)]" onClick={() => void handleToggleTrack('audio')}>
                         {ui.audioEnabled ? 'Mute mic' : 'Unmute mic'}
@@ -931,7 +931,7 @@ export default function App() {
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Presence</div>
-                      <h3 className="mt-2 text-[28px] font-medium tracking-[-0.05em] text-white">People here</h3>
+                      <h3 className="mt-2 text-[28px] font-medium tracking-[-0.05em] text-white">People</h3>
                     </div>
                     <div className="rounded-full border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] px-3 py-2 text-xs text-white/64 shadow-[inset_0_1px_0_rgba(255,255,255,0.26),0_12px_40px_rgba(0,0,0,0.2)]">
                       {otherPeers.length} remote
@@ -962,8 +962,8 @@ export default function App() {
                 </section>
 
                 <section className="relative rounded-[34px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.07))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-1px_0_rgba(255,255,255,0.05),0_20px_60px_rgba(0,0,0,0.32),0_2px_12px_rgba(129,181,255,0.08)] [backdrop-filter:blur(28px)_saturate(150%)] [-webkit-backdrop-filter:blur(28px)_saturate(150%)] after:pointer-events-none after:absolute after:inset-0 after:[border-radius:inherit] after:bg-[linear-gradient(180deg,rgba(255,255,255,0.16),transparent_28%,transparent_72%,rgba(255,255,255,0.05))] after:opacity-90 md:p-6">
-                  <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Chat</div>
-                  <h3 className="mt-2 text-[28px] font-medium tracking-[-0.05em] text-white">Room chat</h3>
+                  <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Messages</div>
+                  <h3 className="mt-2 text-[28px] font-medium tracking-[-0.05em] text-white">Chat</h3>
                   <div className="mt-5 flex max-h-[360px] min-h-[260px] flex-col gap-3 overflow-auto rounded-[24px] border border-white/10 bg-black/18 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                     {ui.chat.length === 0 ? (
                       <div className="text-sm text-white/44">No messages yet.</div>
@@ -998,7 +998,7 @@ export default function App() {
 
               <section className="col-span-12 relative rounded-[34px] border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.07))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-1px_0_rgba(255,255,255,0.05),0_20px_60px_rgba(0,0,0,0.32),0_2px_12px_rgba(129,181,255,0.08)] [backdrop-filter:blur(28px)_saturate(150%)] [-webkit-backdrop-filter:blur(28px)_saturate(150%)] after:pointer-events-none after:absolute after:inset-0 after:[border-radius:inherit] after:bg-[linear-gradient(180deg,rgba(255,255,255,0.16),transparent_28%,transparent_72%,rgba(255,255,255,0.05))] after:opacity-90 md:p-6">
                 <div className="text-[11px] uppercase tracking-[0.24em] text-white/42">Activity</div>
-                <h3 className="mt-2 text-[28px] font-medium tracking-[-0.05em] text-white">Activity log</h3>
+                <h3 className="mt-2 text-[28px] font-medium tracking-[-0.05em] text-white">Event log</h3>
                 <pre className="mt-5 max-h-[420px] min-h-[260px] overflow-auto whitespace-pre-wrap break-words rounded-[24px] border border-white/10 bg-black/18 p-4 text-[13px] leading-6 text-white/68 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                   {ui.logs.join('\n')}
                 </pre>

@@ -3,16 +3,16 @@
 
 :root {
   color-scheme: dark;
-  --bg-0: #030507;
-  --bg-1: #07111a;
-  --bg-2: #0c1b28;
-  --ink: #f4fbff;
-  --muted: rgba(220, 236, 245, 0.68);
-  --line: rgba(202, 231, 255, 0.14);
-  --glass: rgba(16, 24, 36, 0.32);
-  --glass-strong: rgba(16, 24, 36, 0.52);
-  --accent: #93f7d4;
-  --accent-2: #8cb8ff;
+  --bg-0: #0b1118;
+  --bg-1: #122030;
+  --bg-2: #1e3147;
+  --ink: #f7fbff;
+  --muted: rgba(233, 241, 250, 0.74);
+  --line: rgba(230, 242, 255, 0.22);
+  --glass: rgba(255, 255, 255, 0.12);
+  --glass-strong: rgba(255, 255, 255, 0.18);
+  --accent: #9ff7df;
+  --accent-2: #a8c8ff;
 }
 
 @layer base {
@@ -32,10 +32,10 @@
     color: var(--ink);
     overflow-x: hidden;
     background:
-      radial-gradient(circle at 15% 20%, rgba(122, 255, 214, 0.12), transparent 24%),
-      radial-gradient(circle at 85% 15%, rgba(121, 158, 255, 0.16), transparent 22%),
-      radial-gradient(circle at 50% 85%, rgba(255, 255, 255, 0.08), transparent 28%),
-      linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 38%, var(--bg-0) 100%);
+      radial-gradient(circle at 12% 18%, rgba(170, 255, 231, 0.24), transparent 22%),
+      radial-gradient(circle at 82% 12%, rgba(175, 206, 255, 0.24), transparent 24%),
+      radial-gradient(circle at 55% 82%, rgba(255, 255, 255, 0.16), transparent 24%),
+      linear-gradient(180deg, #304865 0%, #19283a 40%, #0b1016 100%);
     background-attachment: fixed;
   }
 
@@ -45,10 +45,11 @@
     inset: 0;
     pointer-events: none;
     background:
-      linear-gradient(135deg, rgba(255,255,255,0.08), transparent 24%, transparent 72%, rgba(255,255,255,0.05)),
-      repeating-linear-gradient(180deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 12px);
+      radial-gradient(circle at top, rgba(255,255,255,0.25), transparent 34%),
+      linear-gradient(135deg, rgba(255,255,255,0.12), transparent 24%, transparent 72%, rgba(255,255,255,0.08)),
+      repeating-linear-gradient(180deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 12px);
     mix-blend-mode: screen;
-    opacity: 0.45;
+    opacity: 0.7;
   }
 
   button,
