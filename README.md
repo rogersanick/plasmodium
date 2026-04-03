@@ -12,7 +12,8 @@ npm install
 npm run dev
 ```
 
-- App: http://127.0.0.1:5173
+- Vite app: http://127.0.0.1:5173
+- Legacy static shell (now also direct Trystero): `npm run dev:static` → http://127.0.0.1:5177
 
 ## Environment
 
