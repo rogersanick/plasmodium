@@ -3,7 +3,8 @@ export const TRYSTERO_APP_ID = (import.meta.env.VITE_TRYSTERO_APP_ID || 'plasmod
 export const PLASMODIUM_ACTIONS = {
   presence: 'plasmodium:presence',
   chat: 'plasmodium:chat',
-  mediaState: 'plasmodium:media-state'
+  mediaState: 'plasmodium:media-state',
+  typing: 'plasmodium:typing'
 } as const
 
 export type WalletMode = 'Ethereum wallet' | 'Guest'
@@ -14,6 +15,8 @@ export type PeerRecord = {
   address: string
   peerId: string
   walletMode: WalletMode | null
+  displayName?: string
+  avatarHue?: number
   role: MediaRole
   audioEnabled: boolean
   videoEnabled: boolean
@@ -29,6 +32,7 @@ export type ChatPayload = {
   id: string
   from: string
   address: string
+  displayName?: string
   room: string
   text: string
   issuedAt: string
@@ -41,6 +45,14 @@ export type MediaStatePayload = {
   audioEnabled: boolean
   videoEnabled: boolean
   issuedAt: string
+}
+
+export type TypingPayload = {
+  from: string
+  room: string
+  displayName?: string
+  issuedAt: string
+  active: boolean
 }
 
 export type RemoteStreamRecord = {
@@ -64,4 +76,10 @@ export function formatAddress(address: string | null) {
 
 export function makeChatId() {
   return crypto.randomUUID()
+}
+
+export function fallbackDisplayName(address: string | null, displayName?: string | null) {
+  if (displayName?.trim()) return displayName.trim()
+  if (!address) return 'Guest'
+  return formatAddress(address)
 }
