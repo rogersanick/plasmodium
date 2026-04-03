@@ -848,7 +848,7 @@ export default function App() {
             </header>
 
             <main className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
-              <aside className="rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+              <aside className="order-2 rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl xl:order-1">
                 {!ui.room ? (
                   <div className="space-y-4 rounded-[24px] border border-white/14 bg-white/[0.08] p-4">
                     <div><div className="text-[11px] uppercase tracking-[0.22em] text-white/42">Meet now</div><h2 className="mt-2 text-[30px] font-medium tracking-[-0.05em] text-white">Start a room</h2><p className="mt-2 text-sm leading-6 text-white/62">Create a room and share the link like any familiar calling app.</p></div>
@@ -872,7 +872,7 @@ export default function App() {
                 )}
               </aside>
 
-              <section className="rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+              <section className="order-1 rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl xl:order-2">
                 <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div><div className="text-[11px] uppercase tracking-[0.22em] text-white/42">Call</div><h2 className="mt-1 text-[30px] font-medium tracking-[-0.05em] text-white">Conversation</h2><p className="mt-2 max-w-[620px] text-sm leading-6 text-white/62">{callStatus}</p></div>{ui.room ? <button className="rounded-full border border-white/16 bg-white/10 px-4 py-3 text-sm font-medium text-white/90" onClick={() => void handleCopyLink()}>Copy invite link</button> : null}</div>
                 {callNotice && ui.room ? <div className="mb-4 rounded-[24px] border border-rose-200/18 bg-rose-300/10 px-4 py-3 text-sm text-rose-50">{callNotice}</div> : null}
                 {featuredCard ? (
@@ -895,7 +895,7 @@ export default function App() {
                 )}
               </section>
 
-              <aside className="space-y-4">
+              <aside className="order-3 space-y-4 xl:order-3">
                 <section className="rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
                   <div className="text-[11px] uppercase tracking-[0.22em] text-white/42">Messages</div><h3 className="mt-1 text-[26px] font-medium tracking-[-0.05em] text-white">Chat</h3>
                   <div className="mt-2 text-xs text-white/48">{typingNames.length > 0 ? `${typingNames.join(', ')} ${typingNames.length === 1 ? 'is' : 'are'} typing…` : 'Ephemeral room chat'}</div>
@@ -914,7 +914,7 @@ export default function App() {
               </aside>
             </main>
 
-            {ui.room ? <div className="fixed inset-x-0 bottom-4 z-20 px-3"><div className="mx-auto flex w-full max-w-[860px] flex-wrap items-center justify-center gap-3 rounded-[28px] border border-white/18 bg-white/[0.1] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.2)] backdrop-blur-3xl"><button className={cn('rounded-full px-5 py-3 text-sm font-medium', ui.audioEnabled ? 'bg-white/10 text-white/92' : 'bg-amber-200/90 text-[#3f2a00]')} onClick={() => void handleToggleTrack('audio')}>{ui.audioEnabled ? 'Mute mic' : 'Unmute mic'}</button><button className={cn('rounded-full px-5 py-3 text-sm font-medium', ui.videoEnabled ? 'bg-white/10 text-white/92' : 'bg-sky-200/90 text-[#0a2540]')} onClick={() => void handleToggleTrack('video')}>{ui.videoEnabled ? 'Hide camera' : 'Show camera'}</button><button className={cn('rounded-full px-5 py-3 text-sm font-medium', ui.role === 'broadcaster' ? 'bg-emerald-200/90 text-[#143226]' : 'bg-white text-[#102118]')} onClick={() => void handleToggleBroadcast()}>{ui.role === 'broadcaster' ? 'Stop sharing camera' : 'Turn on camera'}</button><button className="rounded-full bg-white/10 px-5 py-3 text-sm font-medium text-white/92" onClick={() => void handleCopyLink()}>Copy link</button><button className="rounded-full bg-white/10 px-5 py-3 text-sm font-medium text-white/92" onClick={handleSwitchIdentity}>Switch identity</button><button className="rounded-full bg-[#ff8d8d] px-5 py-3 text-sm font-semibold text-[#431717]" onClick={handleLeaveRoom}>Leave call</button></div></div> : null}
+            {ui.room ? <div className="fixed inset-x-0 bottom-4 z-20 px-3"><div className="mx-auto flex w-full max-w-[860px] items-center gap-3 overflow-x-auto rounded-[28px] border border-white/18 bg-white/[0.1] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.2)] backdrop-blur-3xl"><button className={cn('shrink-0 rounded-full px-5 py-3 text-sm font-medium', ui.audioEnabled ? 'bg-white/10 text-white/92' : 'bg-amber-200/90 text-[#3f2a00]')} onClick={() => void handleToggleTrack('audio')}>{ui.audioEnabled ? 'Mute mic' : 'Unmute mic'}</button><button className={cn('shrink-0 rounded-full px-5 py-3 text-sm font-medium', ui.videoEnabled ? 'bg-white/10 text-white/92' : 'bg-sky-200/90 text-[#0a2540]')} onClick={() => void handleToggleTrack('video')}>{ui.videoEnabled ? 'Hide camera' : 'Show camera'}</button><button className={cn('shrink-0 rounded-full px-5 py-3 text-sm font-medium', ui.role === 'broadcaster' ? 'bg-emerald-200/90 text-[#143226]' : 'bg-white text-[#102118]')} onClick={() => void handleToggleBroadcast()}>{ui.role === 'broadcaster' ? 'Stop sharing camera' : 'Turn on camera'}</button><button className="shrink-0 rounded-full bg-white/10 px-5 py-3 text-sm font-medium text-white/92" onClick={() => void handleCopyLink()}>Copy link</button><button className="shrink-0 rounded-full bg-white/10 px-5 py-3 text-sm font-medium text-white/92" onClick={handleSwitchIdentity}>Switch identity</button><button className="shrink-0 rounded-full bg-[#ff8d8d] px-5 py-3 text-sm font-semibold text-[#431717]" onClick={handleLeaveRoom}>Leave call</button></div></div> : null}
           </div>
         )}
       </div>
