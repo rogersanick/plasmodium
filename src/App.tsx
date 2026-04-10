@@ -4,7 +4,6 @@ import { joinRoom as joinTrysteroRoom, selfId } from 'trystero'
 import { startPhysarumBackground } from './physarum/startPhysarumBackground'
 import {
   fallbackDisplayName,
-  formatAddress,
   makeChatId,
   makeRoomName,
   type ChatPayload,
@@ -21,10 +20,10 @@ import {
 import { usePlasmodiumStore } from './lib/plasmodiumStore'
 
 type RealtimeRoom = ReturnType<typeof joinTrysteroRoom>
-type PresenceSender = (payload: PresencePayload, targetPeers?: string | string[] | null) => Promise<void>
-type ChatSender = (payload: ChatPayload, targetPeers?: string | string[] | null) => Promise<void>
-type MediaStateSender = (payload: MediaStatePayload, targetPeers?: string | string[] | null) => Promise<void>
-type TypingSender = (payload: TypingPayload, targetPeers?: string | string[] | null) => Promise<void>
+type PresenceSender = (payload: PresencePayload, targetPeers?: string | string[] | null) => Promise<void[]>
+type ChatSender = (payload: ChatPayload, targetPeers?: string | string[] | null) => Promise<void[]>
+type MediaStateSender = (payload: MediaStatePayload, targetPeers?: string | string[] | null) => Promise<void[]>
+type TypingSender = (payload: TypingPayload, targetPeers?: string | string[] | null) => Promise<void[]>
 
 type ChatMessage = {
   id: string
@@ -81,10 +80,6 @@ type UiState = {
 
 function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ')
-}
-
-function PresenceDot({ active }: { active: boolean }) {
-  return <span className={cn('inline-block h-2.5 w-2.5 rounded-full', active ? 'bg-[#98f9d9] shadow-[0_0_14px_rgba(152,249,217,0.9)]' : 'bg-white/28')} />
 }
 
 function AvatarBadge({ label, hue = 200, active = false, large = false }: { label: string; hue?: number; active?: boolean; large?: boolean }) {
@@ -166,6 +161,84 @@ function CameraOffCard({
         {subtitle ? <div className="mx-auto mt-2 max-w-sm text-sm leading-6 text-white/56">{subtitle}</div> : null}
       </div>
     </figure>
+  )
+}
+
+type AppStage = 'landing' | 'setup' | 'inRoom'
+
+function IconMic() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+    </svg>
+  )
+}
+
+function IconMicOff() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="1" y1="1" x2="23" y2="23" />
+      <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6" />
+      <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2c0 .76-.13 1.49-.35 2.17" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+    </svg>
+  )
+}
+
+function IconVideo() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L16 11" />
+      <rect x="2" y="6" width="14" height="12" rx="2" />
+    </svg>
+  )
+}
+
+function IconVideoOff() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.66 5H14a2 2 0 0 1 2 2v2.34l1 .77 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L18 10.34" />
+      <path d="M16 16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  )
+}
+
+function IconBroadcast() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="2" />
+      <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
+    </svg>
+  )
+}
+
+function IconLink() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  )
+}
+
+function IconUser() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  )
+}
+
+function IconPhoneOff() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91" />
+      <line x1="23" y1="1" x2="1" y2="23" />
+    </svg>
   )
 }
 
@@ -606,22 +679,21 @@ export default function App() {
   const remoteStreams = useMemo(() => ui.remoteStreams, [ui.remoteStreams])
   const hasWallet = typeof window !== 'undefined' && Boolean(window.ethereum)
   const broadcasterCount = useMemo(() => otherPeers.filter((peer) => peer.role === 'broadcaster').length + (ui.role === 'broadcaster' ? 1 : 0), [otherPeers, ui.role])
-  const viewerCount = useMemo(() => Math.max((otherPeers.length + (ui.room ? 1 : 0)) - broadcasterCount, 0), [broadcasterCount, otherPeers.length, ui.room])
-  const presenceCount = otherPeers.length + (ui.room ? 1 : 0)
   const typingNames = useMemo(() => ui.typingPeerIds.map((peerId) => {
     const peer = ui.peers.find((entry) => entry.from === peerId)
     return fallbackDisplayName(peer?.address ?? null, peer?.displayName)
   }), [ui.peers, ui.typingPeerIds])
 
+  const stage: AppStage = !ui.appPeerId ? 'landing' : !ui.room ? 'setup' : 'inRoom'
+
   const callStatus = useMemo(() => {
-    if (!ui.room) return 'Start a room to begin.'
     if (callNotice) return callNotice
-    if (!ui.localStream) return 'Getting your camera and microphone ready...'
-    if (otherPeers.length === 0) return 'You’re the first one here. Share the room link to invite someone in.'
-    if (remoteStreams.length > 0) return `${remoteStreams.length} live ${remoteStreams.length === 1 ? 'video feed is' : 'video feeds are'} on screen.`
-    if (broadcasterCount > 0 && ui.role !== 'broadcaster') return `${broadcasterCount} ${broadcasterCount === 1 ? 'person is' : 'people are'} on camera right now.`
-    return `${otherPeers.length} ${otherPeers.length === 1 ? 'other person is' : 'other people are'} in the room.`
-  }, [broadcasterCount, callNotice, otherPeers.length, remoteStreams.length, ui.localStream, ui.role, ui.room])
+    if (!ui.localStream) return 'Getting your camera and microphone ready…'
+    if (otherPeers.length === 0) return 'Share the room link to invite someone.'
+    if (remoteStreams.length > 0) return `${remoteStreams.length} live ${remoteStreams.length === 1 ? 'feed' : 'feeds'} on screen.`
+    if (broadcasterCount > 0 && ui.role !== 'broadcaster') return `${broadcasterCount} ${broadcasterCount === 1 ? 'person' : 'people'} on camera.`
+    return `${otherPeers.length} ${otherPeers.length === 1 ? 'person' : 'people'} in the room.`
+  }, [broadcasterCount, callNotice, otherPeers.length, remoteStreams.length, ui.localStream, ui.role])
 
   const peerLookupByPeerId = useMemo(() => new Map(otherPeers.map((peer) => [peer.peerId, peer])), [otherPeers])
   const remoteTiles = useMemo(() => remoteStreams.map((record) => ({ ...record, peer: peerLookupByPeerId.get(record.peerId) ?? null })), [peerLookupByPeerId, remoteStreams])
@@ -783,98 +855,51 @@ export default function App() {
       <div className="pointer-events-none fixed inset-x-0 top-0 z-[3] h-28 bg-linear-to-b from-white/15 to-transparent opacity-80" />
 
       <div className="relative z-10 mx-auto w-[min(1380px,calc(100%-24px))] px-2 py-4 md:w-[min(1440px,calc(100%-40px))] md:px-0 md:py-6">
-        {!ui.appPeerId ? (
+
+        {stage === 'landing' && (
           <section className="grid min-h-[calc(100vh-48px)] place-items-center">
-            <div className="w-full max-w-[1180px] rounded-[44px] border border-white/14 bg-white/[0.06] p-3 shadow-[0_24px_120px_rgba(0,0,0,0.28)] backdrop-blur-md">
-              <div className="relative overflow-hidden rounded-[36px] border border-white/16 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0.08))] shadow-[inset_0_1px_0_rgba(255,255,255,0.34),inset_0_-1px_0_rgba(255,255,255,0.04),0_20px_60px_rgba(0,0,0,0.28)] after:pointer-events-none after:absolute after:inset-0 after:[border-radius:inherit] after:bg-[linear-gradient(180deg,rgba(255,255,255,0.18),transparent_30%,transparent_70%,rgba(255,255,255,0.06))] lg:flex">
-                <div className="flex-1 p-8 md:p-11">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/18 bg-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/75 backdrop-blur-xl">
-                    <span className="h-2 w-2 rounded-full bg-[#98f9d9] shadow-[0_0_16px_rgba(152,249,217,0.9)]" />Private video calls
-                  </div>
-                  <h1 className="mt-5 max-w-xl text-5xl font-medium tracking-[-0.05em] text-white [font-family:'Orbitron',ui-sans-serif,system-ui,sans-serif] md:text-6xl">Plasmodium</h1>
-                  <p className="mt-6 max-w-[620px] text-[18px] leading-8 text-white/72 md:text-[20px]">Meet face to face, drop messages in the side chat, and share a private room link with a softer, modern glass-first feel.</p>
-                  <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-[24px] border border-white/14 bg-white/[0.08] p-4 backdrop-blur-xl"><div className="text-[11px] uppercase tracking-[0.2em] text-white/46">Quick rooms</div><div className="mt-2 text-sm text-white/84">Create or join with one link.</div></div>
-                    <div className="rounded-[24px] border border-white/14 bg-white/[0.08] p-4 backdrop-blur-xl"><div className="text-[11px] uppercase tracking-[0.2em] text-white/46">Live chat</div><div className="mt-2 text-sm text-white/84">Keep messages beside the call.</div></div>
-                    <div className="rounded-[24px] border border-white/14 bg-white/[0.08] p-4 backdrop-blur-xl"><div className="text-[11px] uppercase tracking-[0.2em] text-white/46">Private identity</div><div className="mt-2 text-sm text-white/84">Use your wallet or start as a guest.</div></div>
-                  </div>
-                </div>
-                <div className="border-t border-white/10 p-4 lg:w-[min(40%,440px)] lg:min-w-[360px] lg:border-l lg:border-t-0 lg:p-6">
-                  <section className="mx-auto flex h-full w-full max-w-[430px] flex-col justify-center rounded-[30px] border border-white/16 bg-white/[0.08] p-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_20px_80px_rgba(0,0,0,0.18)] backdrop-blur-2xl md:p-8">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] border border-white/18 bg-white/12 text-xl text-white/90">✦</div>
-                    <h2 className="mt-5 text-[40px] font-medium tracking-[-0.05em] text-white">Start your call</h2>
-                    <p className="mt-3 text-[15px] leading-6 text-white/62">Sign in with your wallet or jump in with a guest profile to create and share a room.</p>
-                    <div className="mt-6 rounded-[24px] border border-white/14 bg-white/[0.08] p-4 text-left">
-                      <div className="mb-3 flex items-center justify-between">
-                        <label className="text-[11px] uppercase tracking-[0.22em] text-white/44">Your display</label>
-                        <button className="rounded-full border border-white/14 bg-white/8 px-3 py-1 text-[11px] text-white/70" type="button" onClick={randomizeAvatarHue}>Refresh avatar</button>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <AvatarBadge label={displayName || 'Guest'} hue={avatarHue} />
-                        <input className="w-full rounded-[16px] border border-white/14 bg-white/10 px-3 py-2 text-sm text-white outline-none placeholder:text-white/[0.42]" placeholder="Add a display name (optional)" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-                      </div>
-                    </div>
-                    <div className="mt-8 flex flex-col gap-3">
-                      <button className="rounded-[22px] border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-5 py-4 text-sm font-semibold text-[#08211d] disabled:cursor-not-allowed disabled:opacity-45" disabled={ui.loginBusy || !hasWallet} onClick={() => void handleWalletLogin()}>{ui.loginBusy && ui.walletMode !== 'Guest' ? 'Checking wallet...' : 'Continue with Ethereum'}</button>
-                      <button className="rounded-[22px] border border-white/14 bg-white/10 px-5 py-4 text-sm font-semibold text-white/92 disabled:cursor-not-allowed disabled:opacity-45" disabled={ui.loginBusy} onClick={() => void handleAnonymousLogin()}>{ui.loginBusy && ui.walletMode === 'Guest' ? 'Setting up guest...' : 'Continue as guest'}</button>
-                    </div>
-                  </section>
-                </div>
+            <div className="w-full max-w-[420px] rounded-[36px] border border-white/16 bg-white/[0.08] p-8 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_24px_120px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-10">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] border border-white/18 bg-white/12 text-xl text-white/90">{'\u2726'}</div>
+              <h1 className="mt-5 text-4xl font-medium tracking-[-0.05em] text-white [font-family:'Orbitron',ui-sans-serif,system-ui,sans-serif]">Plasmodium</h1>
+              <p className="mt-3 text-[15px] leading-6 text-white/62">Private peer-to-peer video calls.</p>
+              <div className="mt-8 flex flex-col gap-3">
+                <button className="rounded-[22px] border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-5 py-4 text-sm font-semibold text-[#08211d] disabled:cursor-not-allowed disabled:opacity-45" disabled={ui.loginBusy || !hasWallet} onClick={() => void handleWalletLogin()}>{ui.loginBusy && ui.walletMode !== 'Guest' ? 'Checking wallet\u2026' : 'Continue with Ethereum'}</button>
+                <button className="rounded-[22px] border border-white/14 bg-white/10 px-5 py-4 text-sm font-semibold text-white/92 disabled:cursor-not-allowed disabled:opacity-45" disabled={ui.loginBusy} onClick={() => void handleAnonymousLogin()}>{ui.loginBusy && ui.walletMode === 'Guest' ? 'Setting up guest\u2026' : 'Continue as guest'}</button>
               </div>
             </div>
           </section>
-        ) : (
-          <div className="space-y-4 pb-30">
-            <header className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-              <section className="rounded-[32px] border border-white/16 bg-white/[0.08] px-6 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <div className="inline-flex items-center gap-2 rounded-full border border-white/16 bg-white/10 px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-white/60"><PresenceDot active={ui.role === 'broadcaster'} />{ui.role === 'broadcaster' ? 'In the spotlight' : 'Ready to join'}</div>
-                    <p className="mt-3 max-w-[640px] text-[15px] leading-6 text-white/66 md:text-[16px]">Share a room link, watch who joins, keep side chat open, and move between camera-on and camera-off naturally.</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <AvatarBadge label={localIdentityLabel} hue={avatarHue} active={ui.role === 'broadcaster'} />
-                    <div className="min-w-0"><div className="truncate text-sm font-medium text-white/92">{localIdentityLabel}</div><div className="truncate text-xs text-white/56">{ui.room ? `Room ${ui.room}` : 'Not in a room yet'}</div></div>
-                  </div>
+        )}
+
+        {stage === 'setup' && (
+          <section className="grid min-h-[calc(100vh-48px)] place-items-center">
+            <div className="w-full max-w-[440px] rounded-[36px] border border-white/16 bg-white/[0.08] p-8 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_24px_120px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-10">
+              <h2 className="text-[28px] font-medium tracking-[-0.04em] text-white">Set up your profile</h2>
+              <p className="mt-2 text-sm leading-6 text-white/58">Choose a display name and join or create a room.</p>
+              <div className="mt-6 rounded-[24px] border border-white/14 bg-white/[0.08] p-4 text-left">
+                <div className="mb-3 flex items-center justify-between">
+                  <label className="text-[11px] uppercase tracking-[0.22em] text-white/44">Your display</label>
+                  <button className="rounded-full border border-white/14 bg-white/8 px-3 py-1 text-[11px] text-white/70" type="button" onClick={randomizeAvatarHue}>Refresh avatar</button>
                 </div>
-              </section>
+                <div className="flex items-center gap-3">
+                  <AvatarBadge label={displayName || 'Guest'} hue={avatarHue} />
+                  <input className="w-full rounded-[16px] border border-white/14 bg-white/10 px-3 py-2 text-sm text-white outline-none placeholder:text-white/[0.42]" placeholder="Display name (optional)" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+                </div>
+              </div>
+              <form className="mt-6 space-y-3" onSubmit={(event) => { event.preventDefault(); void handleJoinRoom() }}>
+                <input className="w-full rounded-[20px] border border-white/16 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/[0.42]" placeholder="Room name" value={roomDraft} onChange={(event) => setRoomDraft(event.target.value)} />
+                <button className="w-full rounded-[20px] border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-4 py-3 text-sm font-semibold text-[#08211d] disabled:cursor-not-allowed disabled:opacity-45" disabled={!roomDraft.trim()} type="submit">Join room</button>
+                <button className="w-full rounded-[20px] border border-white/14 bg-white/10 px-4 py-3 text-sm font-semibold text-white/88" type="button" onClick={() => void joinRoom(makeRoomName())}>Create random room</button>
+              </form>
+            </div>
+          </section>
+        )}
+
+        {stage === 'inRoom' && (
+          <div className="pb-30">
+            <main className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
               <section className="rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-[24px] border border-white/14 bg-white/[0.08] px-4 py-4"><div className="text-[11px] uppercase tracking-[0.22em] text-white/44">You</div><div className="mt-2 text-sm text-white/92">{ui.walletMode ?? 'Disconnected'}</div><div className="mt-1 break-all text-sm text-white/58">{formatAddress(ui.address)}</div></div>
-                  <div className="rounded-[24px] border border-white/14 bg-white/[0.08] px-4 py-4"><div className="text-[11px] uppercase tracking-[0.22em] text-white/44">People</div><div className="mt-2 text-sm text-white/92">{presenceCount} in room</div><div className="mt-1 text-sm text-white/58">{broadcasterCount} live · {viewerCount} watching</div></div>
-                  <div className="rounded-[24px] border border-white/14 bg-white/[0.08] px-4 py-4"><div className="text-[11px] uppercase tracking-[0.22em] text-white/44">Status</div><div className="mt-2 text-sm text-white/92">{ui.audioEnabled ? 'Mic on' : 'Mic muted'} · {ui.videoEnabled ? 'Camera on' : 'Camera off'}</div><div className="mt-1 break-all text-sm text-white/58">{ui.appPeerId ?? '—'}</div></div>
-                </div>
-              </section>
-            </header>
-
-            <main className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
-              <aside className="order-2 rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl xl:order-1">
-                {!ui.room ? (
-                  <div className="space-y-4 rounded-[24px] border border-white/14 bg-white/[0.08] p-4">
-                    <div><div className="text-[11px] uppercase tracking-[0.22em] text-white/42">Meet now</div><h2 className="mt-2 text-[30px] font-medium tracking-[-0.05em] text-white">Start a room</h2><p className="mt-2 text-sm leading-6 text-white/62">Create a room and share the link like any familiar calling app.</p></div>
-                    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void handleJoinRoom() }}>
-                      <input className="w-full rounded-[20px] border border-white/16 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/[0.42]" placeholder="Enter a room name" value={roomDraft} onChange={(event) => setRoomDraft(event.target.value)} />
-                      <button className="w-full rounded-[20px] border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-4 py-3 text-sm font-semibold text-[#08211d] disabled:cursor-not-allowed disabled:opacity-45" disabled={!ui.appPeerId || !roomDraft.trim()} type="submit">Join room</button>
-                      <button className="w-full rounded-[20px] border border-white/14 bg-white/10 px-4 py-3 text-sm font-semibold text-white/88" type="button" onClick={() => setRoomDraft(makeRoomName())}>Create random room</button>
-                    </form>
-                  </div>
-                ) : (
-                  <>
-                    <div className="mb-4 flex items-center justify-between"><div><div className="text-[11px] uppercase tracking-[0.22em] text-white/42">People</div><h3 className="mt-1 text-[26px] font-medium tracking-[-0.05em] text-white">In this call</h3></div><div className="rounded-full border border-white/14 bg-white/10 px-3 py-2 text-xs text-white/70">{presenceCount}</div></div>
-                    <div className="space-y-3">
-                      <div className="rounded-[24px] border border-white/14 bg-white/[0.08] p-3"><div className="flex items-center gap-3"><AvatarBadge label={localIdentityLabel} hue={avatarHue} active={ui.role === 'broadcaster'} /><div className="min-w-0 flex-1"><div className="truncate text-sm font-medium text-white/92">You</div><div className="truncate text-xs text-white/56">{localIdentityLabel} · {ui.audioEnabled ? 'mic on' : 'mic off'} · {ui.videoEnabled ? 'camera on' : 'camera off'}</div></div></div></div>
-                      {otherPeers.length === 0 ? <div className="rounded-[24px] border border-white/14 bg-white/[0.08] px-4 py-5 text-sm text-white/56">No one else is here yet.</div> : null}
-                      {otherPeers.map((peer) => (
-                        <div key={peer.from} className="rounded-[24px] border border-white/14 bg-white/[0.08] p-3"><div className="flex items-center gap-3"><AvatarBadge label={fallbackDisplayName(peer.address, peer.displayName)} hue={peer.avatarHue} active={peer.role === 'broadcaster'} /><div className="min-w-0 flex-1"><div className="truncate text-sm font-medium text-white/92">{fallbackDisplayName(peer.address, peer.displayName)}</div><div className="truncate text-xs text-white/56">{peer.role === 'broadcaster' ? 'on camera' : 'listening'} · {peer.audioEnabled ? 'mic on' : 'mic off'} · {peer.videoEnabled ? 'camera on' : 'camera off'}</div></div></div></div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </aside>
-
-              <section className="order-1 rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl xl:order-2">
-                <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div><div className="text-[11px] uppercase tracking-[0.22em] text-white/42">Call</div><h2 className="mt-1 text-[30px] font-medium tracking-[-0.05em] text-white">Conversation</h2><p className="mt-2 max-w-[620px] text-sm leading-6 text-white/62">{callStatus}</p></div>{ui.room ? <button className="rounded-full border border-white/16 bg-white/10 px-4 py-3 text-sm font-medium text-white/90" onClick={() => void handleCopyLink()}>Copy invite link</button> : null}</div>
-                {callNotice && ui.room ? <div className="mb-4 rounded-[24px] border border-rose-200/18 bg-rose-300/10 px-4 py-3 text-sm text-rose-50">{callNotice}</div> : null}
+                <p className="mb-4 text-sm text-white/62">{callStatus}</p>
+                {callNotice ? <div className="mb-4 rounded-[24px] border border-rose-200/18 bg-rose-300/10 px-4 py-3 text-sm text-rose-50">{callNotice}</div> : null}
                 {featuredCard ? (
                   <div className="space-y-4">
                     {'stream' in featuredCard ? (
@@ -891,32 +916,84 @@ export default function App() {
                     ) : null}
                   </div>
                 ) : (
-                  <CameraOffCard title="You’re ready" subtitle="Turn on your camera, wait for others to join, or share the room link to get the conversation started." badge="ready" hue={avatarHue} featured />
+                  <CameraOffCard title="You" subtitle="Turn on your camera or share the room link." badge="ready" hue={avatarHue} featured />
                 )}
               </section>
 
-              <aside className="order-3 space-y-4 xl:order-3">
+              <aside className="space-y-4">
                 <section className="rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
-                  <div className="text-[11px] uppercase tracking-[0.22em] text-white/42">Messages</div><h3 className="mt-1 text-[26px] font-medium tracking-[-0.05em] text-white">Chat</h3>
-                  <div className="mt-2 text-xs text-white/48">{typingNames.length > 0 ? `${typingNames.join(', ')} ${typingNames.length === 1 ? 'is' : 'are'} typing…` : 'Ephemeral room chat'}</div>
-                  <div className="mt-4 flex max-h-[420px] min-h-[320px] flex-col-reverse gap-3 overflow-auto rounded-[24px] border border-white/10 bg-black/18 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                    {ui.chat.length === 0 ? <div className="text-sm text-white/44">No messages yet.</div> : ui.chat.map((message) => <div key={message.id} className={cn('max-w-[88%] rounded-[22px] px-4 py-3', message.self ? 'ml-auto bg-[linear-gradient(180deg,rgba(214,255,243,0.95),rgba(164,248,222,0.86))] text-[#0f2b24]' : 'border border-white/10 bg-white/[0.08] text-white/86')}><div className={cn('text-[11px]', message.self ? 'text-[#33584d]/70' : 'text-white/46')}>{message.self ? 'You' : fallbackDisplayName(message.address, message.displayName)} · {new Date(message.issuedAt).toLocaleTimeString()}</div><div className="pt-1 text-sm leading-6">{message.text}</div></div>)}
+                  <h3 className="text-sm font-medium text-white/70">Chat</h3>
+                  <div className="mt-1 text-xs text-white/48">{typingNames.length > 0 ? `${typingNames.join(', ')} ${typingNames.length === 1 ? 'is' : 'are'} typing\u2026` : 'Ephemeral room chat'}</div>
+                  <div className="mt-3 flex max-h-[420px] min-h-[280px] flex-col-reverse gap-3 overflow-auto rounded-[24px] border border-white/10 bg-black/18 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                    {ui.chat.length === 0 ? <div className="text-sm text-white/44">No messages yet.</div> : ui.chat.map((message) => <div key={message.id} className={cn('max-w-[88%] rounded-[22px] px-4 py-3', message.self ? 'ml-auto bg-[linear-gradient(180deg,rgba(214,255,243,0.95),rgba(164,248,222,0.86))] text-[#0f2b24]' : 'border border-white/10 bg-white/[0.08] text-white/86')}><div className={cn('text-[11px]', message.self ? 'text-[#33584d]/70' : 'text-white/46')}>{message.self ? 'You' : fallbackDisplayName(message.address, message.displayName)} {'\u00b7'} {new Date(message.issuedAt).toLocaleTimeString()}</div><div className="pt-1 text-sm leading-6">{message.text}</div></div>)}
                   </div>
-                  <div className="mt-4 flex gap-3">
+                  <div className="mt-3 flex gap-3">
                     <input className="min-w-0 flex-1 rounded-[20px] border border-white/16 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/[0.42]" placeholder="Send a message" value={chatDraft} onChange={(event) => handleChatDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void handleSendChat() } }} />
                     <button className="rounded-[20px] border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-5 py-3 text-sm font-semibold text-[#08211d]" onClick={() => void handleSendChat()}>Send</button>
                   </div>
                 </section>
                 <section className="rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
-                  <div className="text-[11px] uppercase tracking-[0.22em] text-white/42">Activity</div><h3 className="mt-1 text-[26px] font-medium tracking-[-0.05em] text-white">Event log</h3>
-                  <pre className="mt-4 max-h-[280px] min-h-[220px] overflow-auto whitespace-pre-wrap break-words rounded-[24px] border border-white/10 bg-black/18 p-4 text-[13px] leading-6 text-white/68">{ui.logs.join('\n')}</pre>
+                  <h3 className="text-sm font-medium text-white/70">Event log</h3>
+                  <pre className="mt-3 max-h-[220px] min-h-[160px] overflow-auto whitespace-pre-wrap break-words rounded-[24px] border border-white/10 bg-black/18 p-4 text-[13px] leading-6 text-white/68">{ui.logs.join('\n')}</pre>
                 </section>
               </aside>
             </main>
 
-            {ui.room ? <div className="fixed inset-x-0 bottom-4 z-20 px-3"><div className="mx-auto flex w-full max-w-[860px] items-center gap-3 overflow-x-auto rounded-[28px] border border-white/18 bg-white/[0.1] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.2)] backdrop-blur-3xl"><button className={cn('shrink-0 rounded-full px-5 py-3 text-sm font-medium', ui.audioEnabled ? 'bg-white/10 text-white/92' : 'bg-amber-200/90 text-[#3f2a00]')} onClick={() => void handleToggleTrack('audio')}>{ui.audioEnabled ? 'Mute mic' : 'Unmute mic'}</button><button className={cn('shrink-0 rounded-full px-5 py-3 text-sm font-medium', ui.videoEnabled ? 'bg-white/10 text-white/92' : 'bg-sky-200/90 text-[#0a2540]')} onClick={() => void handleToggleTrack('video')}>{ui.videoEnabled ? 'Hide camera' : 'Show camera'}</button><button className={cn('shrink-0 rounded-full px-5 py-3 text-sm font-medium', ui.role === 'broadcaster' ? 'bg-emerald-200/90 text-[#143226]' : 'bg-white text-[#102118]')} onClick={() => void handleToggleBroadcast()}>{ui.role === 'broadcaster' ? 'Stop sharing camera' : 'Turn on camera'}</button><button className="shrink-0 rounded-full bg-white/10 px-5 py-3 text-sm font-medium text-white/92" onClick={() => void handleCopyLink()}>Copy link</button><button className="shrink-0 rounded-full bg-white/10 px-5 py-3 text-sm font-medium text-white/92" onClick={handleSwitchIdentity}>Switch identity</button><button className="shrink-0 rounded-full bg-[#ff8d8d] px-5 py-3 text-sm font-semibold text-[#431717]" onClick={handleLeaveRoom}>Leave call</button></div></div> : null}
+            <div className="fixed inset-x-0 bottom-4 z-20 px-3">
+              <div className="mx-auto flex w-full max-w-[480px] items-center justify-center gap-2 rounded-[28px] border border-white/18 bg-white/[0.1] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.2)] backdrop-blur-3xl">
+                <button
+                  className={cn('flex flex-col items-center gap-1 rounded-full p-3 transition-colors', ui.audioEnabled ? 'bg-white/12 text-white/90 hover:bg-white/18' : 'bg-amber-200/90 text-[#3f2a00]')}
+                  onClick={() => void handleToggleTrack('audio')}
+                  title={ui.audioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+                >
+                  {ui.audioEnabled ? <IconMic /> : <IconMicOff />}
+                  <span className="text-[10px] font-medium leading-none">{ui.audioEnabled ? 'Mic' : 'Muted'}</span>
+                </button>
+                <button
+                  className={cn('flex flex-col items-center gap-1 rounded-full p-3 transition-colors', ui.videoEnabled ? 'bg-white/12 text-white/90 hover:bg-white/18' : 'bg-sky-200/90 text-[#0a2540]')}
+                  onClick={() => void handleToggleTrack('video')}
+                  title={ui.videoEnabled ? 'Hide camera' : 'Show camera'}
+                >
+                  {ui.videoEnabled ? <IconVideo /> : <IconVideoOff />}
+                  <span className="text-[10px] font-medium leading-none">{ui.videoEnabled ? 'Camera' : 'Off'}</span>
+                </button>
+                <button
+                  className={cn('flex flex-col items-center gap-1 rounded-full p-3 transition-colors', ui.role === 'broadcaster' ? 'bg-emerald-200/90 text-[#143226]' : 'bg-white/12 text-white/90 hover:bg-white/18')}
+                  onClick={() => void handleToggleBroadcast()}
+                  title={ui.role === 'broadcaster' ? 'Stop sharing' : 'Go live'}
+                >
+                  <IconBroadcast />
+                  <span className="text-[10px] font-medium leading-none">{ui.role === 'broadcaster' ? 'Live' : 'Go live'}</span>
+                </button>
+                <button
+                  className="flex flex-col items-center gap-1 rounded-full bg-white/12 p-3 text-white/90 transition-colors hover:bg-white/18"
+                  onClick={() => void handleCopyLink()}
+                  title="Copy room link"
+                >
+                  <IconLink />
+                  <span className="text-[10px] font-medium leading-none">Link</span>
+                </button>
+                <button
+                  className="flex flex-col items-center gap-1 rounded-full bg-white/12 p-3 text-white/90 transition-colors hover:bg-white/18"
+                  onClick={handleSwitchIdentity}
+                  title="Switch identity"
+                >
+                  <IconUser />
+                  <span className="text-[10px] font-medium leading-none">Switch</span>
+                </button>
+                <button
+                  className="flex flex-col items-center gap-1 rounded-full bg-[#ff8d8d]/90 p-3 text-[#431717] transition-colors hover:bg-[#ff8d8d]"
+                  onClick={handleLeaveRoom}
+                  title="Leave call"
+                >
+                  <IconPhoneOff />
+                  <span className="text-[10px] font-medium leading-none">Leave</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
+
       </div>
     </div>
   )
