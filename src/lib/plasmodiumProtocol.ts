@@ -65,6 +65,10 @@ export function readRoomFromUrl() {
   return new URLSearchParams(window.location.search).get('room') || null
 }
 
+export function readPasswordRequiredFromUrl(): boolean {
+  return new URLSearchParams(window.location.search).get('passwordRequired') === 'true'
+}
+
 export function makeRoomName() {
   return `room-${crypto.randomUUID().slice(0, 8)}`
 }

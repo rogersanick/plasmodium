@@ -13,6 +13,7 @@ import {
   type PresencePayload,
   type RemoteStreamRecord,
   readRoomFromUrl,
+  readPasswordRequiredFromUrl,
   TRYSTERO_APP_ID,
   PLASMODIUM_ACTIONS,
   type TypingPayload
@@ -41,6 +42,7 @@ type MutableAppState = {
   anonymousWallet: ethers.HDNodeWallet | ethers.Wallet | null
   appPeerId: string | null
   room: string | null
+  password: string | null
   localStream: MediaStream | null
   remoteStreams: Map<string, RemoteStreamRecord>
   peers: Map<string, PeerRecord>
@@ -242,6 +244,138 @@ function IconPhoneOff() {
   )
 }
 
+function ParticipantsSidebar({
+  selfLabel,
+  selfHue,
+  selfRole,
+  selfAudioEnabled,
+  selfVideoEnabled,
+  activeSpeakerPeerId,
+  peers,
+}: {
+  selfLabel: string
+  selfHue: number
+  selfRole: MediaRole
+  selfAudioEnabled: boolean
+  selfVideoEnabled: boolean
+  activeSpeakerPeerId: string | null
+  peers: PeerRecord[]
+}) {
+  const total = 1 + peers.length
+
+  return (
+    <aside className="sticky top-6 hidden h-[calc(100vh-120px)] w-[220px] shrink-0 flex-col rounded-[28px] border border-white/10 bg-white/[0.05] shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:flex">
+      <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
+        <span className="text-sm font-medium text-white/70">Participants</span>
+        <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-white/50">{total}</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 py-3">
+        <ParticipantRow
+          label={selfLabel}
+          sublabel="You"
+          hue={selfHue}
+          role={selfRole}
+          audioEnabled={selfAudioEnabled}
+          videoEnabled={selfVideoEnabled}
+          isSpeaking={activeSpeakerPeerId === 'local'}
+          connected
+        />
+
+        {peers.map((peer) => (
+          <ParticipantRow
+            key={peer.from}
+            label={fallbackDisplayName(peer.address, peer.displayName)}
+            hue={peer.avatarHue}
+            role={peer.role}
+            audioEnabled={peer.audioEnabled}
+            videoEnabled={peer.videoEnabled}
+            isSpeaking={activeSpeakerPeerId === peer.from || activeSpeakerPeerId === peer.peerId}
+            connected
+          />
+        ))}
+      </div>
+    </aside>
+  )
+}
+
+function ParticipantRow({
+  label,
+  sublabel,
+  hue = 200,
+  role,
+  audioEnabled,
+  videoEnabled,
+  isSpeaking,
+  connected,
+}: {
+  label: string
+  sublabel?: string
+  hue?: number
+  role: MediaRole
+  audioEnabled: boolean
+  videoEnabled: boolean
+  isSpeaking: boolean
+  connected: boolean
+}) {
+  return (
+    <div className={cn(
+      'group flex items-center gap-2.5 rounded-[14px] px-2.5 py-2 transition-colors',
+      isSpeaking ? 'bg-emerald-400/10' : 'hover:bg-white/[0.04]'
+    )}>
+      <div className="relative shrink-0">
+        <AvatarBadge label={label} hue={hue} active={isSpeaking} />
+        <span
+          className={cn(
+            'absolute -bottom-0.5 -right-0.5 block h-2.5 w-2.5 rounded-full border-2 border-[#0a0e14]',
+            connected ? 'bg-emerald-400' : 'bg-white/30'
+          )}
+        />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate text-[13px] font-medium text-white/85">{label}</span>
+          {role === 'broadcaster' && (
+            <span className="shrink-0 rounded bg-emerald-400/20 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-emerald-300/90">Live</span>
+          )}
+        </div>
+        {sublabel && <div className="text-[11px] text-white/40">{sublabel}</div>}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1 text-white/30">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={audioEnabled ? 'text-white/50' : 'text-red-400/60'}>
+          {audioEnabled ? (
+            <>
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            </>
+          ) : (
+            <>
+              <line x1="1" y1="1" x2="23" y2="23" />
+              <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6" />
+            </>
+          )}
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={videoEnabled ? 'text-white/50' : 'text-red-400/60'}>
+          {videoEnabled ? (
+            <>
+              <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L16 11" />
+              <rect x="2" y="6" width="14" height="12" rx="2" />
+            </>
+          ) : (
+            <>
+              <path d="M10.66 5H14a2 2 0 0 1 2 2v2.34l1 .77 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L18 10.34" />
+              <path d="M16 16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </>
+          )}
+        </svg>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const typingTimeoutRef = useRef<number | null>(null)
@@ -249,8 +383,11 @@ export default function App() {
   const localAnalyserCleanupRef = useRef<(() => void) | null>(null)
   const remoteAnalyserCleanupRef = useRef<Map<string, () => void>>(new Map())
   const [roomDraft, setRoomDraft] = useState(() => readRoomFromUrl() ?? '')
+  const [passwordDraft, setPasswordDraft] = useState('')
   const [chatDraft, setChatDraft] = useState('')
   const [callNotice, setCallNotice] = useState<string | null>(null)
+  const [pendingPassword, setPendingPassword] = useState(() => readPasswordRequiredFromUrl() && !!readRoomFromUrl())
+  const [brokenLink] = useState(() => readPasswordRequiredFromUrl() && !readRoomFromUrl())
 
   const displayName = usePlasmodiumStore((state) => state.displayName)
   const avatarHue = usePlasmodiumStore((state) => state.avatarHue)
@@ -262,7 +399,8 @@ export default function App() {
     walletMode: null,
     anonymousWallet: null,
     appPeerId: null,
-    room: readRoomFromUrl(),
+    room: (readPasswordRequiredFromUrl() && readRoomFromUrl()) ? null : readRoomFromUrl(),
+    password: null,
     localStream: null,
     remoteStreams: new Map(),
     peers: new Map(),
@@ -275,8 +413,8 @@ export default function App() {
     loginBusy: false,
     hasPromptedForMedia: false,
     role: 'viewer',
-    audioEnabled: true,
-    videoEnabled: true,
+    audioEnabled: false,
+    videoEnabled: false,
     chat: [],
     typingPeers: new Map(),
     activeSpeakerPeerId: null
@@ -286,15 +424,15 @@ export default function App() {
     address: null,
     walletMode: null,
     appPeerId: null,
-    room: readRoomFromUrl(),
+    room: (readPasswordRequiredFromUrl() && readRoomFromUrl()) ? null : readRoomFromUrl(),
     localStream: null,
     remoteStreams: [],
     peers: [],
     loginBusy: false,
     logs: [],
     role: 'viewer',
-    audioEnabled: true,
-    videoEnabled: true,
+    audioEnabled: false,
+    videoEnabled: false,
     chat: [],
     typingPeerIds: [],
     activeSpeakerPeerId: null
@@ -463,11 +601,34 @@ export default function App() {
   const ensureMedia = useCallback(async () => {
     const state = stateRef.current
     if (state.localStream) return state.localStream
-    state.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    const wantVideo = state.videoEnabled
+    const wantAudio = state.audioEnabled
+    let stream: MediaStream | null = null
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    } catch {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+        log('Camera unavailable — audio only')
+      } catch {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+          log('Microphone unavailable — video only')
+        } catch (err) {
+          log(`Media access failed: ${(err as Error).message}`)
+          throw err
+        }
+      }
+    }
+    state.localStream = stream
+    const videoTrack = state.localStream.getVideoTracks()[0]
+    if (videoTrack && !wantVideo) videoTrack.enabled = false
+    const audioTrack = state.localStream.getAudioTracks()[0]
+    if (audioTrack && !wantAudio) audioTrack.enabled = false
     syncTrackFlags()
     localAnalyserCleanupRef.current?.()
     localAnalyserCleanupRef.current = attachSpeakerAnalyser(state.localStream, 'local')
-    log('Camera and microphone ready')
+    log('Media devices ready')
     if (state.room && state.realtimeRoom) {
       await publishLocalStream()
       await publishPresence()
@@ -517,14 +678,17 @@ export default function App() {
     if (options?.logLeave && roomName) log('Left room', { room: roomName })
   }, [clearAnalysers, clearRemoteState, log, publishPresence, publishTyping, syncUi])
 
-  const joinRoom = useCallback(async (roomName?: string | null) => {
+  const joinRoom = useCallback(async (roomName?: string | null, roomPassword?: string | null) => {
     const room = (roomName || stateRef.current.room || makeRoomName()).trim()
     if (!room) return
+    const password = roomPassword ?? stateRef.current.password ?? undefined
     const state = stateRef.current
     if (!state.appPeerId || !state.address) return log('Sign in before joining a room')
     if (state.realtimeRoom) closeRealtimeRoom()
 
-    const realtimeRoom = joinTrysteroRoom({ appId: TRYSTERO_APP_ID }, room)
+    const config: Parameters<typeof joinTrysteroRoom>[0] = { appId: TRYSTERO_APP_ID }
+    if (password) config.password = password
+    const realtimeRoom = joinTrysteroRoom(config, room)
     const [sendPresence, getPresence] = realtimeRoom.makeAction<PresencePayload>(PLASMODIUM_ACTIONS.presence)
     const [sendChat, getChat] = realtimeRoom.makeAction<ChatPayload>(PLASMODIUM_ACTIONS.chat)
     const [sendMediaState, getMediaState] = realtimeRoom.makeAction<MediaStatePayload>(PLASMODIUM_ACTIONS.mediaState)
@@ -584,6 +748,7 @@ export default function App() {
     })
 
     state.room = room
+    state.password = password || null
     state.realtimeRoom = realtimeRoom
     state.presenceSender = sendPresence
     state.chatSender = sendChat
@@ -594,14 +759,18 @@ export default function App() {
     state.typingPeers.clear()
     state.streamPublishedRoom = null
     clearRemoteState()
-    window.history.replaceState({}, '', `${window.location.pathname}?room=${encodeURIComponent(room)}`)
+    const joinUrl = new URL(window.location.pathname, window.location.origin)
+    joinUrl.searchParams.set('room', room)
+    if (password) joinUrl.searchParams.set('passwordRequired', 'true')
+    window.history.replaceState({}, '', joinUrl.toString())
     syncUi()
     setRoomDraft(room)
+    setPasswordDraft('')
+    setPendingPassword(false)
     log('Joined room', { room })
     await publishPresence()
     await publishMediaState()
-    await maybePromptMedia()
-  }, [appendChatMessage, attachSpeakerAnalyser, clearRemoteState, closeRealtimeRoom, log, maybePromptMedia, publishMediaState, publishPresence, removePeerByAppPeerId, syncUi, upsertPeer])
+  }, [appendChatMessage, attachSpeakerAnalyser, clearRemoteState, closeRealtimeRoom, log, publishMediaState, publishPresence, removePeerByAppPeerId, syncUi, upsertPeer])
 
   const proveWalletOwnership = useCallback(async (address: string, signer: (message: string) => Promise<string>, walletMode: PeerRecord['walletMode']) => {
     const proofMessage = ['Plasmodium identity proof', '', 'Sign this message to prove you control this wallet for peer-to-peer calling.', `Address: ${address}`, `Issued at: ${new Date().toISOString()}`].join('\n')
@@ -617,8 +786,12 @@ export default function App() {
   }, [joinRoom, log, syncUi])
 
   const resetAuthSession = useCallback(() => {
+    const urlRoom = readRoomFromUrl()
+    const urlPwRequired = readPasswordRequiredFromUrl()
     stateRef.current.appPeerId = null
-    stateRef.current.room = readRoomFromUrl()
+    stateRef.current.room = (urlPwRequired && urlRoom) ? null : urlRoom
+    stateRef.current.password = null
+    setPendingPassword(urlPwRequired && !!urlRoom)
     stateRef.current.peers.clear()
     stateRef.current.chat = []
     stateRef.current.typingPeers.clear()
@@ -639,12 +812,14 @@ export default function App() {
     syncUi()
   }, [syncUi])
 
+  const stage: AppStage = !ui.appPeerId ? 'landing' : !ui.room ? 'setup' : 'inRoom'
+
   useEffect(() => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current || stage === 'inRoom') return
     let backgroundHandle: { destroy(): void } | null = null
     try { backgroundHandle = startPhysarumBackground({ canvas: canvasRef.current }) } catch (error) { console.error('Physarum background failed to start', error) }
     return () => backgroundHandle?.destroy()
-  }, [])
+  }, [stage])
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -678,22 +853,10 @@ export default function App() {
   const otherPeers = useMemo(() => ui.peers.filter((peer) => peer.from !== ui.appPeerId), [ui.appPeerId, ui.peers])
   const remoteStreams = useMemo(() => ui.remoteStreams, [ui.remoteStreams])
   const hasWallet = typeof window !== 'undefined' && Boolean(window.ethereum)
-  const broadcasterCount = useMemo(() => otherPeers.filter((peer) => peer.role === 'broadcaster').length + (ui.role === 'broadcaster' ? 1 : 0), [otherPeers, ui.role])
   const typingNames = useMemo(() => ui.typingPeerIds.map((peerId) => {
     const peer = ui.peers.find((entry) => entry.from === peerId)
     return fallbackDisplayName(peer?.address ?? null, peer?.displayName)
   }), [ui.peers, ui.typingPeerIds])
-
-  const stage: AppStage = !ui.appPeerId ? 'landing' : !ui.room ? 'setup' : 'inRoom'
-
-  const callStatus = useMemo(() => {
-    if (callNotice) return callNotice
-    if (!ui.localStream) return 'Getting your camera and microphone ready…'
-    if (otherPeers.length === 0) return 'Share the room link to invite someone.'
-    if (remoteStreams.length > 0) return `${remoteStreams.length} live ${remoteStreams.length === 1 ? 'feed' : 'feeds'} on screen.`
-    if (broadcasterCount > 0 && ui.role !== 'broadcaster') return `${broadcasterCount} ${broadcasterCount === 1 ? 'person' : 'people'} on camera.`
-    return `${otherPeers.length} ${otherPeers.length === 1 ? 'person' : 'people'} in the room.`
-  }, [broadcasterCount, callNotice, otherPeers.length, remoteStreams.length, ui.localStream, ui.role])
 
   const peerLookupByPeerId = useMemo(() => new Map(otherPeers.map((peer) => [peer.peerId, peer])), [otherPeers])
   const remoteTiles = useMemo(() => remoteStreams.map((record) => ({ ...record, peer: peerLookupByPeerId.get(record.peerId) ?? null })), [peerLookupByPeerId, remoteStreams])
@@ -724,21 +887,19 @@ export default function App() {
         hue: peer.avatarHue
       }))
 
-    const localCard = ui.localStream
-      ? [{ id: 'local-video', type: 'video' as const, stream: ui.localStream, title: 'You', subtitle: `${localIdentityLabel} · ${ui.audioEnabled ? 'mic on' : 'mic off'} · ${ui.videoEnabled ? 'camera on' : 'camera off'}`, badge: ui.role === 'broadcaster' ? 'live' : 'you', featured: false, hue: avatarHue }]
-      : [{ id: 'local-avatar', type: 'avatar' as const, title: 'You', subtitle: `${localIdentityLabel} · ${ui.audioEnabled ? 'mic on' : 'mic off'} · ${ui.videoEnabled ? 'camera on' : 'camera off'}`, badge: ui.role === 'broadcaster' ? 'live' : 'you', featured: false, hue: avatarHue }]
+    const localCard = ui.localStream && ui.videoEnabled
+      ? [{ id: 'local-video', type: 'video' as const, stream: ui.localStream, title: 'You', subtitle: `${localIdentityLabel} · ${ui.audioEnabled ? 'mic on' : 'mic off'} · camera on`, badge: ui.role === 'broadcaster' ? 'live' : 'you', featured: false, hue: avatarHue }]
+      : [{ id: 'local-avatar', type: 'avatar' as const, title: 'You', subtitle: `${localIdentityLabel} · ${ui.audioEnabled ? 'mic on' : 'mic off'} · camera off`, badge: ui.role === 'broadcaster' ? 'live' : 'you', featured: false, hue: avatarHue }]
 
     const cards = [...remoteWithVideo, ...cameraOffPeers, ...localCard]
     const featuredPeerId = ui.activeSpeakerPeerId === 'local' ? 'local-video' : cards.find((card) => card.id.startsWith(`${ui.activeSpeakerPeerId}:`) || card.id === `off:${ui.activeSpeakerPeerId}`)?.id ?? cards.find((card) => card.badge === 'live')?.id ?? cards[0]?.id
     return cards.map((card) => ({ ...card, featured: card.id === featuredPeerId }))
   }, [avatarHue, localIdentityLabel, otherPeers, remoteTiles, ui.activeSpeakerPeerId, ui.audioEnabled, ui.localStream, ui.role, ui.videoEnabled])
 
-  const featuredCard = stageCards.find((card) => card.featured) ?? null
-  const sideStageCards = stageCards.filter((card) => !card.featured)
-
   const shareLink = useCallback(() => {
-    const url = new URL(window.location.href)
+    const url = new URL(window.location.pathname, window.location.origin)
     if (stateRef.current.room) url.searchParams.set('room', stateRef.current.room)
+    if (stateRef.current.password) url.searchParams.set('passwordRequired', 'true')
     return url.toString()
   }, [])
 
@@ -800,34 +961,45 @@ export default function App() {
   }, [closeRealtimeRoom, log, resetAuthSession, syncUi])
 
   const handleJoinRoom = useCallback(async () => {
-    await joinRoom(roomDraft)
-  }, [joinRoom, roomDraft])
+    await joinRoom(roomDraft, passwordDraft || null)
+  }, [joinRoom, passwordDraft, roomDraft])
 
   const handleToggleBroadcast = useCallback(async () => {
-    if (stateRef.current.role === 'broadcaster') {
-      stateRef.current.role = 'viewer'
+    try {
+      if (stateRef.current.role === 'broadcaster') {
+        stateRef.current.role = 'viewer'
+        await publishPresence()
+        await publishMediaState()
+        syncUi()
+        return
+      }
+      await ensureMedia()
+      stateRef.current.role = 'broadcaster'
+      await publishLocalStream()
       await publishPresence()
       await publishMediaState()
       syncUi()
-      return
+    } catch (error) {
+      log(`Go live failed: ${(error as Error).message}`)
     }
-    await ensureMedia()
-    stateRef.current.role = 'broadcaster'
-    await publishLocalStream()
-    await publishPresence()
-    await publishMediaState()
-    syncUi()
-  }, [ensureMedia, publishLocalStream, publishMediaState, publishPresence, syncUi])
+  }, [ensureMedia, log, publishLocalStream, publishMediaState, publishPresence, syncUi])
 
   const handleToggleTrack = useCallback(async (kind: 'audio' | 'video') => {
-    await ensureMedia()
-    const track = kind === 'audio' ? stateRef.current.localStream?.getAudioTracks()[0] : stateRef.current.localStream?.getVideoTracks()[0]
-    if (!track) return
-    track.enabled = !track.enabled
-    syncTrackFlags()
-    await publishPresence()
-    await publishMediaState()
-    log(`${kind === 'audio' ? 'Microphone' : 'Camera'} ${track.enabled ? 'enabled' : 'muted'}`)
+    try {
+      await ensureMedia()
+      const track = kind === 'audio' ? stateRef.current.localStream?.getAudioTracks()[0] : stateRef.current.localStream?.getVideoTracks()[0]
+      if (!track) {
+        log(`No ${kind} track available`)
+        return
+      }
+      track.enabled = !track.enabled
+      syncTrackFlags()
+      await publishPresence()
+      await publishMediaState()
+      log(`${kind === 'audio' ? 'Microphone' : 'Camera'} ${track.enabled ? 'enabled' : 'muted'}`)
+    } catch (error) {
+      log(`${kind === 'audio' ? 'Microphone' : 'Camera'} toggle failed: ${(error as Error).message}`)
+    }
   }, [ensureMedia, log, publishMediaState, publishPresence, syncTrackFlags])
 
   const handleSendChat = useCallback(async () => {
@@ -849,10 +1021,14 @@ export default function App() {
   }, [publishTyping])
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden text-white">
-      <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-0 block h-screen w-screen" />
-      <div className="pointer-events-none fixed inset-0 z-[2] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_18%_18%,rgba(126,255,219,0.12),transparent_24%),radial-gradient(circle_at_82%_14%,rgba(170,202,255,0.16),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(4,8,12,0.48)_55%,rgba(3,5,7,0.66))]" />
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-[3] h-28 bg-linear-to-b from-white/15 to-transparent opacity-80" />
+    <div className={cn('relative min-h-screen overflow-x-hidden text-white', stage === 'inRoom' ? 'bg-[#0a0e14]' : '')}>
+      {stage !== 'inRoom' && (
+        <>
+          <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-0 block h-screen w-screen" />
+          <div className="pointer-events-none fixed inset-0 z-[2] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_18%_18%,rgba(126,255,219,0.12),transparent_24%),radial-gradient(circle_at_82%_14%,rgba(170,202,255,0.16),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(4,8,12,0.48)_55%,rgba(3,5,7,0.66))]" />
+          <div className="pointer-events-none fixed inset-x-0 top-0 z-[3] h-28 bg-linear-to-b from-white/15 to-transparent opacity-80" />
+        </>
+      )}
 
       <div className="relative z-10 mx-auto w-[min(1380px,calc(100%-24px))] px-2 py-4 md:w-[min(1440px,calc(100%-40px))] md:px-0 md:py-6">
 
@@ -861,7 +1037,7 @@ export default function App() {
             <div className="w-full max-w-[420px] rounded-[36px] border border-white/16 bg-white/[0.08] p-8 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_24px_120px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-10">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] border border-white/18 bg-white/12 text-xl text-white/90">{'\u2726'}</div>
               <h1 className="mt-5 text-4xl font-medium tracking-[-0.05em] text-white [font-family:'Orbitron',ui-sans-serif,system-ui,sans-serif]">Plasmodium</h1>
-              <p className="mt-3 text-[15px] leading-6 text-white/62">Private peer-to-peer video calls.</p>
+              <p className="mt-3 text-[15px] leading-6 text-white/62">Private peer-to-peer video calls and chat for humans and/or agents.</p>
               <div className="mt-8 flex flex-col gap-3">
                 <button className="rounded-[22px] border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-5 py-4 text-sm font-semibold text-[#08211d] disabled:cursor-not-allowed disabled:opacity-45" disabled={ui.loginBusy || !hasWallet} onClick={() => void handleWalletLogin()}>{ui.loginBusy && ui.walletMode !== 'Guest' ? 'Checking wallet\u2026' : 'Continue with Ethereum'}</button>
                 <button className="rounded-[22px] border border-white/14 bg-white/10 px-5 py-4 text-sm font-semibold text-white/92 disabled:cursor-not-allowed disabled:opacity-45" disabled={ui.loginBusy} onClick={() => void handleAnonymousLogin()}>{ui.loginBusy && ui.walletMode === 'Guest' ? 'Setting up guest\u2026' : 'Continue as guest'}</button>
@@ -875,6 +1051,9 @@ export default function App() {
             <div className="w-full max-w-[440px] rounded-[36px] border border-white/16 bg-white/[0.08] p-8 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_24px_120px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-10">
               <h2 className="text-[28px] font-medium tracking-[-0.04em] text-white">Set up your profile</h2>
               <p className="mt-2 text-sm leading-6 text-white/58">Choose a display name and join or create a room.</p>
+              {brokenLink && (
+                <div className="mt-4 rounded-[16px] border border-rose-300/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">This link is invalid — no room was specified.</div>
+              )}
               <div className="mt-6 rounded-[24px] border border-white/14 bg-white/[0.08] p-4 text-left">
                 <div className="mb-3 flex items-center justify-between">
                   <label className="text-[11px] uppercase tracking-[0.22em] text-white/44">Your display</label>
@@ -887,112 +1066,141 @@ export default function App() {
               </div>
               <form className="mt-6 space-y-3" onSubmit={(event) => { event.preventDefault(); void handleJoinRoom() }}>
                 <input className="w-full rounded-[20px] border border-white/16 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/[0.42]" placeholder="Room name" value={roomDraft} onChange={(event) => setRoomDraft(event.target.value)} />
-                <button className="w-full rounded-[20px] border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-4 py-3 text-sm font-semibold text-[#08211d] disabled:cursor-not-allowed disabled:opacity-45" disabled={!roomDraft.trim()} type="submit">Join room</button>
+                {pendingPassword && (
+                  <div className="rounded-[16px] border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-left text-sm text-amber-100">This room requires a password to join.</div>
+                )}
+                <input className="w-full rounded-[20px] border border-white/16 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/[0.42]" placeholder={pendingPassword ? 'Password (required)' : 'Password (optional)'} type="password" value={passwordDraft} onChange={(event) => setPasswordDraft(event.target.value)} />
+                <button className="w-full rounded-[20px] border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-4 py-3 text-sm font-semibold text-[#08211d] disabled:cursor-not-allowed disabled:opacity-45" disabled={!roomDraft.trim() || (pendingPassword && !passwordDraft.trim())} type="submit">Join room</button>
                 <button className="w-full rounded-[20px] border border-white/14 bg-white/10 px-4 py-3 text-sm font-semibold text-white/88" type="button" onClick={() => void joinRoom(makeRoomName())}>Create random room</button>
               </form>
             </div>
           </section>
         )}
 
-        {stage === 'inRoom' && (
-          <div className="pb-30">
-            <main className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <section className="rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
-                <p className="mb-4 text-sm text-white/62">{callStatus}</p>
-                {callNotice ? <div className="mb-4 rounded-[24px] border border-rose-200/18 bg-rose-300/10 px-4 py-3 text-sm text-rose-50">{callNotice}</div> : null}
-                {featuredCard ? (
-                  <div className="space-y-4">
-                    {'stream' in featuredCard ? (
-                      <VideoTile stream={featuredCard.stream} title={featuredCard.title} subtitle={featuredCard.subtitle} muted={featuredCard.id === 'local-video'} badge={featuredCard.badge} featured />
-                    ) : (
-                      <CameraOffCard title={featuredCard.title} subtitle={featuredCard.subtitle} badge={featuredCard.badge} hue={featuredCard.hue} featured />
-                    )}
-                    {sideStageCards.length > 0 ? (
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {sideStageCards.map((card) => (
-                          'stream' in card ? <VideoTile key={card.id} stream={card.stream} title={card.title} subtitle={card.subtitle} muted={card.id === 'local-video'} badge={card.badge} /> : <CameraOffCard key={card.id} title={card.title} subtitle={card.subtitle} badge={card.badge} hue={card.hue} />
+        {stage === 'inRoom' && (() => {
+          const videoCards = stageCards.filter((card): card is typeof card & { stream: MediaStream } => 'stream' in card)
+          const hasVideo = videoCards.length > 0
+          const contentShellClass = hasVideo ? 'min-w-0 flex-1 space-y-4' : 'min-w-0 flex-1 max-w-2xl space-y-4'
+
+          return (
+            <div className="pb-28">
+              <div className="mx-auto flex max-w-[1640px] gap-4">
+              <ParticipantsSidebar
+                selfLabel={localIdentityLabel}
+                selfHue={avatarHue}
+                selfRole={ui.role}
+                selfAudioEnabled={ui.audioEnabled}
+                selfVideoEnabled={ui.videoEnabled}
+                activeSpeakerPeerId={ui.activeSpeakerPeerId}
+                peers={otherPeers}
+              />
+              <div className={contentShellClass}>
+                {callNotice ? <div className="rounded-[24px] border border-rose-200/18 bg-rose-300/10 px-4 py-3 text-sm text-rose-50">{callNotice}</div> : null}
+
+                {hasVideo ? (
+                  <main className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+                    <section className="rounded-[32px] border border-white/10 bg-white/[0.05] p-3 shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
+                      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(videoCards.length, 2)}, 1fr)` }}>
+                        {videoCards.map((card) => (
+                          <VideoTile key={card.id} stream={card.stream} title={card.title} subtitle={card.subtitle} muted={card.id === 'local-video'} badge={card.badge} featured={videoCards.length === 1} />
                         ))}
                       </div>
-                    ) : null}
-                  </div>
+                    </section>
+
+                    <aside className="rounded-[32px] border border-white/10 bg-white/[0.05] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
+                      <h3 className="text-sm font-medium text-white/70">Chat</h3>
+                      <div className="mt-1 text-xs text-white/48">{typingNames.length > 0 ? `${typingNames.join(', ')} ${typingNames.length === 1 ? 'is' : 'are'} typing\u2026` : 'Ephemeral room chat'}</div>
+                      <div className="mt-3 flex max-h-[calc(100vh-340px)] min-h-[280px] flex-col-reverse gap-3 overflow-auto rounded-[24px] border border-white/10 bg-black/18 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                        {ui.chat.length === 0 ? <div className="text-sm text-white/44">No messages yet.</div> : ui.chat.map((message) => (
+                          <div key={message.id} className={cn('max-w-[88%] rounded-[22px] px-4 py-3', message.self ? 'ml-auto bg-[linear-gradient(180deg,rgba(214,255,243,0.95),rgba(164,248,222,0.86))] text-[#0f2b24]' : 'border border-white/10 bg-white/[0.08] text-white/86')}>
+                            <div className={cn('text-[11px]', message.self ? 'text-[#33584d]/70' : 'text-white/46')}>{message.self ? 'You' : fallbackDisplayName(message.address, message.displayName)} {'\u00b7'} {new Date(message.issuedAt).toLocaleTimeString()}</div>
+                            <div className="pt-1 text-sm leading-6">{message.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex gap-3">
+                        <input className="min-w-0 flex-1 rounded-full border border-white/16 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/[0.42]" placeholder="Send a message" value={chatDraft} onChange={(event) => handleChatDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void handleSendChat() } }} />
+                        <button className="rounded-full border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-5 py-3 text-sm font-semibold text-[#08211d]" onClick={() => void handleSendChat()}>Send</button>
+                      </div>
+                    </aside>
+                  </main>
                 ) : (
-                  <CameraOffCard title="You" subtitle="Turn on your camera or share the room link." badge="ready" hue={avatarHue} featured />
+                  <main>
+                    <section className="rounded-[32px] border border-white/10 bg-white/[0.05] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
+                      <h3 className="text-sm font-medium text-white/70">Chat</h3>
+                      <div className="mt-1 text-xs text-white/48">{typingNames.length > 0 ? `${typingNames.join(', ')} ${typingNames.length === 1 ? 'is' : 'are'} typing\u2026` : 'Ephemeral room chat'}</div>
+                      <div className="mt-3 flex max-h-[calc(100vh-340px)] min-h-[360px] flex-col-reverse gap-3 overflow-auto rounded-[24px] border border-white/10 bg-black/18 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                        {ui.chat.length === 0 ? <div className="text-sm text-white/44">No messages yet.</div> : ui.chat.map((message) => (
+                          <div key={message.id} className={cn('max-w-[88%] rounded-[22px] px-4 py-3', message.self ? 'ml-auto bg-[linear-gradient(180deg,rgba(214,255,243,0.95),rgba(164,248,222,0.86))] text-[#0f2b24]' : 'border border-white/10 bg-white/[0.08] text-white/86')}>
+                            <div className={cn('text-[11px]', message.self ? 'text-[#33584d]/70' : 'text-white/46')}>{message.self ? 'You' : fallbackDisplayName(message.address, message.displayName)} {'\u00b7'} {new Date(message.issuedAt).toLocaleTimeString()}</div>
+                            <div className="pt-1 text-sm leading-6">{message.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex gap-3">
+                        <input className="min-w-0 flex-1 rounded-full border border-white/16 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/[0.42]" placeholder="Send a message" value={chatDraft} onChange={(event) => handleChatDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void handleSendChat() } }} />
+                        <button className="rounded-full border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-5 py-3 text-sm font-semibold text-[#08211d]" onClick={() => void handleSendChat()}>Send</button>
+                      </div>
+                    </section>
+                  </main>
                 )}
-              </section>
 
-              <aside className="space-y-4">
-                <section className="rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
-                  <h3 className="text-sm font-medium text-white/70">Chat</h3>
-                  <div className="mt-1 text-xs text-white/48">{typingNames.length > 0 ? `${typingNames.join(', ')} ${typingNames.length === 1 ? 'is' : 'are'} typing\u2026` : 'Ephemeral room chat'}</div>
-                  <div className="mt-3 flex max-h-[420px] min-h-[280px] flex-col-reverse gap-3 overflow-auto rounded-[24px] border border-white/10 bg-black/18 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                    {ui.chat.length === 0 ? <div className="text-sm text-white/44">No messages yet.</div> : ui.chat.map((message) => <div key={message.id} className={cn('max-w-[88%] rounded-[22px] px-4 py-3', message.self ? 'ml-auto bg-[linear-gradient(180deg,rgba(214,255,243,0.95),rgba(164,248,222,0.86))] text-[#0f2b24]' : 'border border-white/10 bg-white/[0.08] text-white/86')}><div className={cn('text-[11px]', message.self ? 'text-[#33584d]/70' : 'text-white/46')}>{message.self ? 'You' : fallbackDisplayName(message.address, message.displayName)} {'\u00b7'} {new Date(message.issuedAt).toLocaleTimeString()}</div><div className="pt-1 text-sm leading-6">{message.text}</div></div>)}
-                  </div>
-                  <div className="mt-3 flex gap-3">
-                    <input className="min-w-0 flex-1 rounded-[20px] border border-white/16 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/[0.42]" placeholder="Send a message" value={chatDraft} onChange={(event) => handleChatDraftChange(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void handleSendChat() } }} />
-                    <button className="rounded-[20px] border border-white/18 bg-linear-to-b from-white to-[#dffff3] px-5 py-3 text-sm font-semibold text-[#08211d]" onClick={() => void handleSendChat()}>Send</button>
-                  </div>
-                </section>
-                <section className="rounded-[32px] border border-white/16 bg-white/[0.08] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+                <section className="rounded-[32px] border border-white/10 bg-white/[0.05] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
                   <h3 className="text-sm font-medium text-white/70">Event log</h3>
-                  <pre className="mt-3 max-h-[220px] min-h-[160px] overflow-auto whitespace-pre-wrap break-words rounded-[24px] border border-white/10 bg-black/18 p-4 text-[13px] leading-6 text-white/68">{ui.logs.join('\n')}</pre>
+                  <pre className="mt-3 max-h-[160px] min-h-[80px] overflow-auto whitespace-pre-wrap break-words rounded-[24px] border border-white/10 bg-black/18 p-4 text-[13px] leading-6 text-white/68">{ui.logs.join('\n')}</pre>
                 </section>
-              </aside>
-            </main>
+              </div>
+              </div>
 
-            <div className="fixed inset-x-0 bottom-4 z-20 px-3">
-              <div className="mx-auto flex w-full max-w-[480px] items-center justify-center gap-2 rounded-[28px] border border-white/18 bg-white/[0.1] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.2)] backdrop-blur-3xl">
-                <button
-                  className={cn('flex flex-col items-center gap-1 rounded-full p-3 transition-colors', ui.audioEnabled ? 'bg-white/12 text-white/90 hover:bg-white/18' : 'bg-amber-200/90 text-[#3f2a00]')}
-                  onClick={() => void handleToggleTrack('audio')}
-                  title={ui.audioEnabled ? 'Mute microphone' : 'Unmute microphone'}
-                >
-                  {ui.audioEnabled ? <IconMic /> : <IconMicOff />}
-                  <span className="text-[10px] font-medium leading-none">{ui.audioEnabled ? 'Mic' : 'Muted'}</span>
-                </button>
-                <button
-                  className={cn('flex flex-col items-center gap-1 rounded-full p-3 transition-colors', ui.videoEnabled ? 'bg-white/12 text-white/90 hover:bg-white/18' : 'bg-sky-200/90 text-[#0a2540]')}
-                  onClick={() => void handleToggleTrack('video')}
-                  title={ui.videoEnabled ? 'Hide camera' : 'Show camera'}
-                >
-                  {ui.videoEnabled ? <IconVideo /> : <IconVideoOff />}
-                  <span className="text-[10px] font-medium leading-none">{ui.videoEnabled ? 'Camera' : 'Off'}</span>
-                </button>
-                <button
-                  className={cn('flex flex-col items-center gap-1 rounded-full p-3 transition-colors', ui.role === 'broadcaster' ? 'bg-emerald-200/90 text-[#143226]' : 'bg-white/12 text-white/90 hover:bg-white/18')}
-                  onClick={() => void handleToggleBroadcast()}
-                  title={ui.role === 'broadcaster' ? 'Stop sharing' : 'Go live'}
-                >
-                  <IconBroadcast />
-                  <span className="text-[10px] font-medium leading-none">{ui.role === 'broadcaster' ? 'Live' : 'Go live'}</span>
-                </button>
-                <button
-                  className="flex flex-col items-center gap-1 rounded-full bg-white/12 p-3 text-white/90 transition-colors hover:bg-white/18"
-                  onClick={() => void handleCopyLink()}
-                  title="Copy room link"
-                >
-                  <IconLink />
-                  <span className="text-[10px] font-medium leading-none">Link</span>
-                </button>
-                <button
-                  className="flex flex-col items-center gap-1 rounded-full bg-white/12 p-3 text-white/90 transition-colors hover:bg-white/18"
-                  onClick={handleSwitchIdentity}
-                  title="Switch identity"
-                >
-                  <IconUser />
-                  <span className="text-[10px] font-medium leading-none">Switch</span>
-                </button>
-                <button
-                  className="flex flex-col items-center gap-1 rounded-full bg-[#ff8d8d]/90 p-3 text-[#431717] transition-colors hover:bg-[#ff8d8d]"
-                  onClick={handleLeaveRoom}
-                  title="Leave call"
-                >
-                  <IconPhoneOff />
-                  <span className="text-[10px] font-medium leading-none">Leave</span>
-                </button>
+              <div className="fixed inset-x-0 bottom-4 z-20 px-3">
+                <div className="mx-auto flex w-full max-w-[360px] items-center justify-center gap-3 rounded-full border border-white/18 bg-white/[0.1] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_50px_rgba(0,0,0,0.2)] backdrop-blur-3xl">
+                  <button
+                    className={cn('grid h-12 w-12 place-items-center rounded-full transition-colors', ui.audioEnabled ? 'bg-white/12 text-white/90 hover:bg-white/18' : 'bg-amber-200/90 text-[#3f2a00]')}
+                    onClick={() => void handleToggleTrack('audio')}
+                    title={ui.audioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+                  >
+                    {ui.audioEnabled ? <IconMic /> : <IconMicOff />}
+                  </button>
+                  <button
+                    className={cn('grid h-12 w-12 place-items-center rounded-full transition-colors', ui.videoEnabled ? 'bg-white/12 text-white/90 hover:bg-white/18' : 'bg-sky-200/90 text-[#0a2540]')}
+                    onClick={() => void handleToggleTrack('video')}
+                    title={ui.videoEnabled ? 'Hide camera' : 'Show camera'}
+                  >
+                    {ui.videoEnabled ? <IconVideo /> : <IconVideoOff />}
+                  </button>
+                  <button
+                    className={cn('grid h-12 w-12 place-items-center rounded-full transition-colors', ui.role === 'broadcaster' ? 'bg-emerald-200/90 text-[#143226]' : 'bg-white/12 text-white/90 hover:bg-white/18')}
+                    onClick={() => void handleToggleBroadcast()}
+                    title={ui.role === 'broadcaster' ? 'Stop sharing' : 'Go live'}
+                  >
+                    <IconBroadcast />
+                  </button>
+                  <button
+                    className="grid h-12 w-12 place-items-center rounded-full bg-white/12 text-white/90 transition-colors hover:bg-white/18"
+                    onClick={() => void handleCopyLink()}
+                    title="Copy room link"
+                  >
+                    <IconLink />
+                  </button>
+                  <button
+                    className="grid h-12 w-12 place-items-center rounded-full bg-white/12 text-white/90 transition-colors hover:bg-white/18"
+                    onClick={handleSwitchIdentity}
+                    title="Switch identity"
+                  >
+                    <IconUser />
+                  </button>
+                  <button
+                    className="grid h-12 w-12 place-items-center rounded-full bg-[#ff8d8d]/90 text-[#431717] transition-colors hover:bg-[#ff8d8d]"
+                    onClick={handleLeaveRoom}
+                    title="Leave call"
+                  >
+                    <IconPhoneOff />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
       </div>
     </div>
